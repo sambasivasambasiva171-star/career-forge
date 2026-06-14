@@ -43,6 +43,43 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedResume | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [gapAnalysis, setGapAnalysis] = useState<{
+    matched_skills: Array<{ skill: string; evidence: string }>
+    missing_skills: Array<{ skill: string; jd_context: string }>
+    partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
+  } | null>(null)
+
+  async function handleAnalyzeGap() {
+    if (!resumeId || !jdId) {
+      setError('Missing resume or job description ID.')
+      return
+    }
+
+    setAnalyzing(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/jd/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setGapAnalysis(data.analysis)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
 
   async function handleParse() {
     if (!resumeId) {
@@ -165,6 +202,57 @@ export default function ReviewPage() {
               </ul>
             </section>
           )}
+        </div>
+      )}
+
+      {parsed && (
+        <button
+          onClick={handleAnalyzeGap}
+          disabled={analyzing}
+          className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+        >
+          {analyzing ? 'Analyzing...' : 'Analyze skill gaps vs JD'}
+        </button>
+      )}
+
+      {gapAnalysis && (
+        <div className="space-y-6 mt-6">
+          <section>
+            <h2 className="font-medium text-lg mb-2 text-green-700">Matched Skills ({gapAnalysis.matched_skills.length})</h2>
+            <div className="space-y-2">
+              {gapAnalysis.matched_skills.map((s, i) => (
+                <div key={i} className="border rounded p-3 text-sm bg-green-50">
+                  <p className="font-medium">{s.skill}</p>
+                  <p className="text-gray-600 text-xs">{s.evidence}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="font-medium text-lg mb-2 text-amber-700">Partial Matches ({gapAnalysis.partial_skills.length})</h2>
+            <div className="space-y-2">
+              {gapAnalysis.partial_skills.map((s, i) => (
+                <div key={i} className="border rounded p-3 text-sm bg-amber-50">
+                  <p className="font-medium">{s.skill}</p>
+                  <p className="text-gray-600 text-xs">Resume shows: {s.resume_evidence}</p>
+                  <p className="text-gray-600 text-xs">JD wants: {s.jd_requirement}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="font-medium text-lg mb-2 text-red-700">Missing Skills ({gapAnalysis.missing_skills.length})</h2>
+            <div className="space-y-2">
+              {gapAnalysis.missing_skills.map((s, i) => (
+                <div key={i} className="border rounded p-3 text-sm bg-red-50">
+                  <p className="font-medium">{s.skill}</p>
+                  <p className="text-gray-600 text-xs">{s.jd_context}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </div>

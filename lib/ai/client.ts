@@ -31,11 +31,11 @@ export async function getCompletion({
   return content
 }
 
-export function parseJsonResponse(response: string): unknown {
+export function parseJsonResponse<T = unknown>(response: string): T {
   // Strip markdown code fences defensively in case the model wraps output
   const cleaned = response
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim()
-  return JSON.parse(cleaned)
+  return JSON.parse(cleaned) as T
 }
