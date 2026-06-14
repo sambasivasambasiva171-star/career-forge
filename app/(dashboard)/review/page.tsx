@@ -49,6 +49,126 @@ export default function ReviewPage() {
     missing_skills: Array<{ skill: string; jd_context: string }>
     partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
   } | null>(null)
+  const [generatingQuestions, setGeneratingQuestions] = useState(false)
+  const [questions, setQuestions] = useState<Array<{ id: string; target_skill: string; question_text: string }>>([])
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [submittingAnswer, setSubmittingAnswer] = useState<string | null>(null)
+  const [extractedResults, setExtractedResults] = useState<Record<string, { skill_identified: string; resume_bullet: string }>>({})
+  const [approvalChoices, setApprovalChoices] = useState<Record<string, boolean>>({})
+  const [savingValidation, setSavingValidation] = useState(false)
+  const [validationSaved, setValidationSaved] = useState(false)
+
+  async function handleGenerateQuestions() {
+    if (!resumeId || !jdId) {
+      setError('Missing resume or job description ID.')
+      return
+    }
+
+    setGeneratingQuestions(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/questionnaire/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setQuestions(data.questions)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setGeneratingQuestions(false)
+    }
+  }
+
+  async function handleSubmitAnswer(questionId: string, questionText: string) {
+    const answer = answers[questionId]
+    if (!answer || !answer.trim()) {
+      setError('Please enter an answer before submitting.')
+      return
+    }
+
+    if (!jdId) {
+      setError('Missing job description ID.')
+      return
+    }
+
+    setSubmittingAnswer(questionId)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/questionnaire/extract-skill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jd_id: jdId, question: questionText, answer: answer.trim() }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setExtractedResults((prev) => ({
+        ...prev,
+        [questionId]: { skill_identified: data.skill_identified, resume_bullet: data.resume_bullet },
+      }))
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmittingAnswer(null)
+    }
+  }
+
+  async function handleSaveValidation() {
+    if (!resumeId) {
+      setError('Missing resume ID.')
+      return
+    }
+
+    const approved = questions
+      .filter((q) => extractedResults[q.id] && approvalChoices[q.id])
+      .map((q) => ({
+        question_id: q.id,
+        target_skill: q.target_skill,
+        question: q.question_text,
+        skill_identified: extractedResults[q.id].skill_identified,
+        resume_bullet: extractedResults[q.id].resume_bullet,
+      }))
+
+    setSavingValidation(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/skills/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, approved }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setValidationSaved(true)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSavingValidation(false)
+    }
+  }
 
   async function handleAnalyzeGap() {
     if (!resumeId || !jdId) {
@@ -253,6 +373,76 @@ export default function ReviewPage() {
               ))}
             </div>
           </section>
+        </div>
+      )}
+
+      {gapAnalysis && (
+        <button
+          onClick={handleGenerateQuestions}
+          disabled={generatingQuestions}
+          className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+        >
+          {generatingQuestions ? 'Generating questions...' : 'Generate interactive questions'}
+        </button>
+      )}
+
+      {questions.length > 0 && (
+        <div className="space-y-4 mt-6">
+          <h2 className="font-medium text-lg">Interactive Questions</h2>
+          {questions.map((q) => (
+            <div key={q.id} className="border rounded p-4 space-y-2">
+              <p className="text-xs text-gray-500 uppercase">{q.target_skill}</p>
+              <p className="text-sm font-medium">{q.question_text}</p>
+              <textarea
+                value={answers[q.id] || ''}
+                onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                placeholder="Type your answer here..."
+                className="w-full border rounded px-3 py-2 h-24 text-sm"
+                maxLength={5000}
+              />
+              <button
+                onClick={() => handleSubmitAnswer(q.id, q.question_text)}
+                disabled={submittingAnswer === q.id}
+                className="bg-gray-800 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
+              >
+                {submittingAnswer === q.id ? 'Processing...' : 'Submit answer'}
+              </button>
+
+              {extractedResults[q.id] && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm space-y-1">
+                  <p><span className="font-medium">Skill identified:</span> {extractedResults[q.id].skill_identified}</p>
+                  <p><span className="font-medium">Suggested bullet:</span> {extractedResults[q.id].resume_bullet}</p>
+                </div>
+              )}
+
+              {extractedResults[q.id] && (
+                <label className="flex items-center gap-2 text-sm mt-2">
+                  <input
+                    type="checkbox"
+                    checked={approvalChoices[q.id] || false}
+                    onChange={(e) => setApprovalChoices((prev) => ({ ...prev, [q.id]: e.target.checked }))}
+                  />
+                  Add this to my resume
+                </label>
+              )}
+            </div>
+          ))}
+
+          {Object.values(extractedResults).length > 0 && (
+            <div className="border-t pt-4">
+              {validationSaved ? (
+                <p className="text-green-700 text-sm font-medium">✓ Your selections have been saved.</p>
+              ) : (
+                <button
+                  onClick={handleSaveValidation}
+                  disabled={savingValidation}
+                  className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+                >
+                  {savingValidation ? 'Saving...' : 'Save my selections'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
