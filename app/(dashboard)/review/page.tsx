@@ -57,6 +57,12 @@ export default function ReviewPage() {
   const [approvalChoices, setApprovalChoices] = useState<Record<string, boolean>>({})
   const [savingValidation, setSavingValidation] = useState(false)
   const [validationSaved, setValidationSaved] = useState(false)
+  const [generatingResume, setGeneratingResume] = useState(false)
+  const [finalResume, setFinalResume] = useState<object | null>(null)
+  const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
+  const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [generatingNetworking, setGeneratingNetworking] = useState(false)
+  const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -167,6 +173,99 @@ export default function ReviewPage() {
       setError('Network error. Please try again.')
     } finally {
       setSavingValidation(false)
+    }
+  }
+
+  async function handleGenerateResume() {
+    if (!resumeId || !jdId) {
+      setError('Missing resume or job description ID.')
+      return
+    }
+
+    setGeneratingResume(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/resume/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setFinalResume(data.resume)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setGeneratingResume(false)
+    }
+  }
+
+  async function handleGenerateCoverLetter() {
+    if (!resumeId || !jdId) {
+      setError('Missing resume or job description ID.')
+      return
+    }
+
+    setGeneratingCoverLetter(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/cover-letter/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setCoverLetter(data.cover_letter_text)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setGeneratingCoverLetter(false)
+    }
+  }
+
+  async function handleGenerateNetworking() {
+    if (!jdId) {
+      setError('Missing job description ID.')
+      return
+    }
+
+    setGeneratingNetworking(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/networking/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setNetworkingSuggestions(data.suggestions)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setGeneratingNetworking(false)
     }
   }
 
@@ -440,6 +539,76 @@ export default function ReviewPage() {
                 >
                   {savingValidation ? 'Saving...' : 'Save my selections'}
                 </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {validationSaved && (
+        <div className="space-y-4 mt-8 border-t pt-6">
+          <h2 className="font-medium text-lg">Final Output</h2>
+
+          <button
+            onClick={handleGenerateResume}
+            disabled={generatingResume}
+            className="bg-black text-white rounded px-4 py-2 disabled:opacity-50 mr-2"
+          >
+            {generatingResume ? 'Generating resume...' : 'Generate optimized resume'}
+          </button>
+
+          {finalResume && (
+            <a
+              href="/api/resume/pdf"
+              className="inline-block border rounded px-4 py-2 text-sm hover:border-black"
+            >
+              Download PDF
+            </a>
+          )}
+
+          {finalResume && (
+            <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto max-h-96">
+              {JSON.stringify(finalResume, null, 2)}
+            </pre>
+          )}
+
+          {finalResume && (
+            <div>
+              <button
+                onClick={handleGenerateCoverLetter}
+                disabled={generatingCoverLetter}
+                className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
+              >
+                {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
+              </button>
+
+              {coverLetter && (
+                <div className="bg-gray-50 border rounded p-4 mt-3 text-sm whitespace-pre-wrap">
+                  {coverLetter}
+                </div>
+              )}
+            </div>
+          )}
+
+          {finalResume && (
+            <div>
+              <button
+                onClick={handleGenerateNetworking}
+                disabled={generatingNetworking}
+                className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
+              >
+                {generatingNetworking ? 'Generating suggestions...' : 'Get networking suggestions'}
+              </button>
+
+              {networkingSuggestions.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  {networkingSuggestions.map((s, i) => (
+                    <div key={i} className="border rounded p-3 text-sm">
+                      <p className="text-xs uppercase text-gray-500 mb-1">{s.category}</p>
+                      <p>{s.suggestion_text}</p>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

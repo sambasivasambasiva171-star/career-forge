@@ -30,3 +30,12 @@ export const validateSkillsSchema = z.object({
     resume_bullet: z.string(),
   })),
 })
+
+export const generateResumeSchema = z.object({
+  resume_id: z.string().uuid(),
+  jd_id: z.string().uuid(),
+})
+
+export const generateNetworkingSchema = z.object({
+  jd_id: z.string().uuid(),
+})
