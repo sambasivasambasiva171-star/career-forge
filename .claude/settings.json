@@ -14,7 +14,12 @@
       "Bash(git commit *)",
       "Bash(npm ls *)",
       "Bash(npm uninstall *)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(vercel env *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/privacy)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/forgot-password)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/cookies)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST http://localhost:3000/api/resume/parse -H 'Content-Type: application/json' -d '{\"resume_id\":\"00000000-0000-0000-0000-000000000000\"}')"
     ],
     "additionalDirectories": [
       "/workspaces/career-forge"
