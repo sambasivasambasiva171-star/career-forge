@@ -82,7 +82,6 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {data.document_title && <Text style={styles.docTitle}>{data.document_title}</Text>}
         <Text style={styles.name}>{data.contact.name || 'Candidate Name'}</Text>
         {contactParts.length > 0 && <Text style={styles.contactLine}>{contactParts.join('  |  ')}</Text>}
 

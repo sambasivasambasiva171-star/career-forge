@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="resume.pdf"',
+        'Content-Disposition': `attachment; filename="${(latestResume.content_json as { document_title?: string }).document_title === 'Curriculum Vitae' ? 'CV' : 'Resume'}_${(latestResume.content_json as { contact?: { name?: string } }).contact?.name?.replace(/\s+/g, '_') || 'document'}.pdf"`,
       },
     })
   } catch (err) {

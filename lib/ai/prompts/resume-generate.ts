@@ -7,7 +7,8 @@ Your job is to produce a FINAL, ATS-optimized resume structure that merges the v
 
 For EVERY item in validated_additions:
 - Add its "skill_identified" value to the skills array (avoid duplicates, normalize casing).
-- Take its "resume_bullet" and add it as a new bullet point to the responsibilities array of the work_experience entry whose title/company is most contextually relevant to the question that was asked. If no role is a good fit, append the bullet to the most recent role's responsibilities — do NOT create a new section for it.
+- If the item has "work_experience_index" and "responsibility_index" fields (both numbers, not undefined): REPLACE the responsibility at that exact position in that work_experience entry's responsibilities array with the item's "resume_bullet" text (this is a rewrite of an existing bullet, not a new addition).
+- If the item does NOT have work_experience_index/responsibility_index (undefined/missing): add its "resume_bullet" as a NEW bullet point appended to the responsibilities array of the most contextually relevant work_experience entry, or the most recent role if none fits.
 
 CRITICAL RULES ON PROJECTS:
 - Only include a "projects" array if the ORIGINAL resume data already contained real projects (e.g. software projects, academic projects, portfolio work).
@@ -18,6 +19,16 @@ CRITICAL RULES ON PROJECTS:
 LANGUAGE VARIANT RULES:
 - If language_variant is "uk_english": use British spelling throughout (e.g. "optimised" not "optimized", "organisation" not "organization", "specialised" not "specialized", "programme" not "program", "centre" not "center", "colour" not "color", "analyse" not "analyze"). Apply this to every field including summary, responsibilities, skills, and project descriptions.
 - If language_variant is "us_english": use American spelling throughout (e.g. "optimized", "organization", "specialized", "program", "center", "color", "analyze").
+
+ADDITIONAL CONFIRMED FACTS:
+- The "certifications" array in your output may ONLY contain: (a) certifications present in the ORIGINAL resume data's certifications array, PLUS (b) facts explicitly listed in "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" below, if any.
+- If "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" is "None", do NOT add any new certifications beyond what was in the original resume — even if you infer something might be true from the candidate's work history.
+- For each confirmed fact, add a corresponding short entry to "certifications" using this mapping:
+  - "Candidate holds a valid driving license." -> "Full Driving License"
+  - "Candidate has confirmed right to work in the target country." -> "Eligible to Work in [Country, inferred from JD/location context]"
+  - "Candidate is willing to relocate for this role." -> "Open to Relocation"
+  - "Candidate is eligible for or interested in visa sponsorship for this role." -> "Open to Visa Sponsorship"
+- NEVER invent, assume, or infer any certification, license, status, or qualification not explicitly present in the original data or confirmed facts.
 
 OTHER RULES:
 - Remove any personal details unrelated to employability (hobbies like "watching TV", marital status, etc.) if present.
@@ -43,9 +54,10 @@ export function buildResumeGenerateUserPrompt(
   validatedAdditions: unknown[],
   jdText: string,
   persona: string,
-  languageVariant: string
+  languageVariant: string,
+  preflightFacts: string[]
 ): string {
-  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
+  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (add these where relevant, e.g. a driving license line near contact info or in a 'certifications' style entry):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
 }
 
 export const COVER_LETTER_SYSTEM_PROMPT = `You are a cover letter writing engine. You will receive a candidate's final resume data (JSON), a target job description, and a language variant ("uk_english" or "us_english"). Write a professional cover letter (3-4 short paragraphs) that:

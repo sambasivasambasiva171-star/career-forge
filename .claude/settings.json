@@ -6,7 +6,12 @@
       "Bash(pkill -9 -f \"next dev\")",
       "Bash(npm run *)",
       "Bash(pkill -9 -f \"next\")",
-      "Bash(xargs kill -9)"
+      "Bash(xargs kill -9)",
+      "Bash(kill %1)",
+      "Bash(PORT=3000 npm run dev)",
+      "Bash(fuser -k 3000/tcp 3001/tcp 3002/tcp 3003/tcp 3004/tcp 3005/tcp)",
+      "Bash(fuser -k 3000/tcp)",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "/workspaces/career-forge"

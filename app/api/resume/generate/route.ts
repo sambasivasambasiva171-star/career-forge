@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { RESUME_GENERATE_SYSTEM_PROMPT, buildResumeGenerateUserPrompt } from '@/lib/ai/prompts/resume-generate'
-import { generateResumeSchema } from '@/lib/validation/schemas'
+import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
 
 export async function POST(request: NextRequest) {
@@ -20,12 +20,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const parsed = generateResumeSchema.safeParse(body)
+  const parsed = generateResumeWithFactsSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { resume_id, jd_id } = parsed.data
+  const { resume_id, jd_id, preflight_facts } = parsed.data
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   try {
     const aiResponse = await getCompletion({
       systemPrompt: RESUME_GENERATE_SYSTEM_PROMPT,
-      userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type, languageVariant),
+      userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type, languageVariant, preflight_facts),
       temperature: 0.2,
       maxTokens: 3072,
     })
