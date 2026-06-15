@@ -1,65 +1,174 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import StepProgress from '@/components/StepProgress'
+import { PREFLIGHT_CHECKLIST, JOB_MARKETS } from '@/lib/constants/preflight'
 
 export default function OnboardingPage() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const [personaType, setPersonaType] = useState<'fresher' | 'experienced' | ''>('')
+  const [jobMarket, setJobMarket] = useState<'IN' | 'GB' | 'GLOBAL' | ''>('')
+  const [responses, setResponses] = useState<Record<string, boolean>>({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  async function selectPersona(persona: 'fresher' | 'experienced') {
-    setLoading(true)
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('persona_type, job_market, preflight_responses')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        if (profile.persona_type) setPersonaType(profile.persona_type)
+        if (profile.job_market) setJobMarket(profile.job_market)
+        if (profile.preflight_responses) setResponses(profile.preflight_responses as Record<string, boolean>)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [router])
+
+  function toggleResponse(key: string, value: boolean) {
+    setResponses((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleContinue() {
+    if (!personaType) {
+      setError('Please select whether you are a fresher or an experienced professional.')
+      return
+    }
+    if (!jobMarket) {
+      setError('Please select your target job market.')
+      return
+    }
+
+    setSaving(true)
     setError(null)
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      const res = await fetch('/api/account/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          persona_type: personaType,
+          job_market: jobMarket,
+          preflight_responses: responses,
+        }),
+      })
 
-    if (!user) {
-      router.push('/login')
-      return
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to save.')
+        return
+      }
+
+      router.push('/upload')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
     }
+  }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ persona_type: persona })
-      .eq('id', user.id)
-
-    setLoading(false)
-
-    if (error) {
-      setError('Something went wrong. Please try again.')
-      return
-    }
-
-    router.push('/profile')
+  if (loading) {
+    return <div className="max-w-2xl mx-auto px-4 py-12 text-gray-500">Loading...</div>
   }
 
   return (
-    <div className="max-w-md mx-auto mt-20 text-center space-y-6">
-      <h1 className="text-2xl font-semibold">Tell us where you&apos;re starting from</h1>
-      <p className="text-gray-600">This helps us tailor your resume-building experience.</p>
+    <div className="max-w-2xl mx-auto px-4">
+      <StepProgress current={1} />
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="space-y-8 pb-12">
+        <div>
+          <h1 className="text-xl font-semibold">What best describes you?</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            This determines your CV structure. Choosing the right type is critical for ATS compatibility.
+          </p>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <button
+              onClick={() => setPersonaType('fresher')}
+              className={`border rounded p-4 text-left transition ${personaType === 'fresher' ? 'border-black ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+            >
+              <p className="font-medium">Fresher / Entry-level</p>
+              <p className="text-xs text-gray-500 mt-1">0-2 years experience, recent graduate or career starter.</p>
+            </button>
+            <button
+              onClick={() => setPersonaType('experienced')}
+              className={`border rounded p-4 text-left transition ${personaType === 'experienced' ? 'border-black ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+            >
+              <p className="font-medium">Experienced Professional</p>
+              <p className="text-xs text-gray-500 mt-1">2+ years experience, professional work history.</p>
+            </button>
+          </div>
+        </div>
 
-      <div className="space-y-3">
+        <div>
+          <h2 className="font-medium">Where are you applying?</h2>
+          <p className="text-sm text-gray-500 mt-1">This affects CV formatting, spelling, and terminology.</p>
+          <div className="grid grid-cols-3 gap-3 mt-3">
+            {JOB_MARKETS.map((market) => (
+              <button
+                key={market.code}
+                onClick={() => setJobMarket(market.code)}
+                className={`border rounded p-3 text-center text-sm transition ${jobMarket === market.code ? 'border-black ring-1 ring-black bg-gray-50' : 'border-gray-200 hover:border-gray-400'}`}
+              >
+                <span className="block font-medium">{market.code === 'GLOBAL' ? 'Global' : market.code}</span>
+                <span className="block text-xs text-gray-500">{market.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="font-medium">Pre-Screening Checklist</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            These are often the first filters employers apply — wrong answers cause instant
+            auto-rejection. Your answers will be included in the CV&apos;s additional details section.
+          </p>
+          <div className="space-y-2 mt-3">
+            {PREFLIGHT_CHECKLIST.map((item) => (
+              <label key={item.key} className="flex items-start gap-3 border rounded p-3 cursor-pointer hover:border-gray-400">
+                <input
+                  type="checkbox"
+                  checked={responses[item.key] || false}
+                  onChange={(e) => toggleResponse(item.key, e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-3 text-xs text-yellow-800">
+            <strong>Why pre-screening matters:</strong> Over 75% of applications are rejected
+            before a human looks at the CV — either by ATS keyword filters or pre-screening
+            questions. Getting this right puts you in the top 25% before the CV is even read.
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
         <button
-          onClick={() => selectPersona('fresher')}
-          disabled={loading}
-          className="w-full border rounded-lg px-4 py-4 text-left hover:border-black transition disabled:opacity-50"
+          onClick={handleContinue}
+          disabled={saving}
+          className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
         >
-          <span className="font-medium block">I&apos;m an Entry-Level Graduate / Fresher</span>
-          <span className="text-sm text-gray-500">Limited or no professional experience</span>
-        </button>
-
-        <button
-          onClick={() => selectPersona('experienced')}
-          disabled={loading}
-          className="w-full border rounded-lg px-4 py-4 text-left hover:border-black transition disabled:opacity-50"
-        >
-          <span className="font-medium block">I&apos;m an Experienced Professional</span>
-          <span className="text-sm text-gray-500">I have prior work experience to showcase</span>
+          {saving ? 'Saving...' : 'Continue to Your Details →'}
         </button>
       </div>
     </div>

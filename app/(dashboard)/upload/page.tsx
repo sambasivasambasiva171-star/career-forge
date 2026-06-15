@@ -3,216 +3,236 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import StepProgress from '@/components/StepProgress'
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-const MAX_JD_LENGTH = 10000
 const MAX_MANUAL_LENGTH = 20000
 
 export default function UploadPage() {
   const [mode, setMode] = useState<'upload' | 'manual'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [manualText, setManualText] = useState('')
-  const [jdText, setJdText] = useState('')
+  const [targetRole, setTargetRole] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
-
-    if (!ALLOWED_TYPES.includes(f.type)) {
+    const selected = e.target.files?.[0]
+    if (!selected) {
+      setFile(null)
+      return
+    }
+    if (!ALLOWED_TYPES.includes(selected.type)) {
       setError('Please upload a PDF or Word document.')
       setFile(null)
       return
     }
-
-    if (f.size > MAX_FILE_SIZE) {
-      setError('File too large. Maximum size is 5MB.')
+    if (selected.size > MAX_FILE_SIZE) {
+      setError('File must be 5MB or smaller.')
       setFile(null)
       return
     }
-
     setError(null)
-    setFile(f)
+    setFile(selected)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
-    if (!jdText.trim()) {
-      setError('Please paste the job description you\'re targeting.')
-      return
-    }
-
-    if (jdText.length > MAX_JD_LENGTH) {
-      setError(`Job description is too long (max ${MAX_JD_LENGTH} characters).`)
-      return
-    }
-
     if (mode === 'upload' && !file) {
-      setError('Please select a resume file to upload.')
+      setError('Please select a resume file.')
       return
     }
-
     if (mode === 'manual' && !manualText.trim()) {
-      setError('Please enter your resume details.')
+      setError('Please enter your work experience.')
       return
     }
-
     if (mode === 'manual' && manualText.length > MAX_MANUAL_LENGTH) {
-      setError(`Resume text is too long (max ${MAX_MANUAL_LENGTH} characters).`)
+      setError(`Resume text must be ${MAX_MANUAL_LENGTH} characters or fewer.`)
       return
     }
 
     setLoading(true)
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      router.push('/login')
-      return
-    }
-
     try {
-      let resumeRecord: { id: string }
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setError('You must be logged in.')
+        setLoading(false)
+        return
+      }
+
+      let resumeId: string
 
       if (mode === 'upload' && file) {
-        // Upload file to storage
-        const filePath = `${user.id}/${Date.now()}_${file.name}`
+        const timestamp = Date.now()
+        const path = `${user.id}/${timestamp}_${file.name}`
+
         const { error: uploadError } = await supabase.storage
           .from('resumes')
-          .upload(filePath, file)
+          .upload(path, file)
 
-        if (uploadError) throw uploadError
+        if (uploadError) {
+          setError('Failed to upload file. Please try again.')
+          setLoading(false)
+          return
+        }
 
-        // Create resume record (raw_text will be filled by parsing step later)
-        const { data, error: insertError } = await supabase
+        const { data: resumeRow, error: insertError } = await supabase
           .from('resumes')
           .insert({
             user_id: user.id,
             source_type: 'upload',
-            raw_text: null, // populated by parsing API
-            parsed_json: { storage_path: filePath, original_filename: file.name },
+            raw_text: null,
+            parsed_json: { storage_path: path, original_filename: file.name },
           })
           .select('id')
           .single()
 
-        if (insertError) throw insertError
-        resumeRecord = data
+        if (insertError || !resumeRow) {
+          setError('Failed to save resume. Please try again.')
+          setLoading(false)
+          return
+        }
+
+        resumeId = resumeRow.id
+
+        // Parse the resume immediately so Step 2 can show editable personal info
+        try {
+          await fetch('/api/resume/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resume_id: resumeId }),
+          })
+        } catch {
+          // Non-fatal: parsing can be retried later in the flow
+        }
       } else {
-        // Manual entry
-        const { data, error: insertError } = await supabase
+        const { data: resumeRow, error: insertError } = await supabase
           .from('resumes')
           .insert({
             user_id: user.id,
             source_type: 'manual',
-            raw_text: manualText.trim(),
+            raw_text: manualText,
             parsed_json: null,
           })
           .select('id')
           .single()
 
-        if (insertError) throw insertError
-        resumeRecord = data
+        if (insertError || !resumeRow) {
+          setError('Failed to save resume. Please try again.')
+          setLoading(false)
+          return
+        }
+
+        resumeId = resumeRow.id
+
+        try {
+          await fetch('/api/resume/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resume_id: resumeId }),
+          })
+        } catch {
+          // Non-fatal
+        }
       }
 
-      // Save JD
-      const { data: jdRecord, error: jdError } = await supabase
-        .from('job_descriptions')
-        .insert({
-          user_id: user.id,
-          raw_text: jdText.trim(),
-          parsed_keywords: null,
-        })
-        .select('id')
-        .single()
+      if (targetRole.trim()) {
+        await supabase
+          .from('job_descriptions')
+          .upsert({ user_id: user.id }, { onConflict: 'user_id', ignoreDuplicates: true })
+          .select()
+        // Target role is carried via query param to the next step rather than persisted
+        // here, since job_descriptions rows are created per-JD in the next step.
+      }
 
-      if (jdError) throw jdError
-
-      // Pass IDs forward via query params (or store in session/context)
-      router.push(`/review?resume_id=${resumeRecord.id}&jd_id=${jdRecord.id}`)
-    } catch (err) {
-      console.error(err)
-      setError('Something went wrong while saving your information. Please try again.')
-    } finally {
+      const params = new URLSearchParams({ resume_id: resumeId })
+      if (targetRole.trim()) params.set('target_role', targetRole.trim())
+      router.push(`/job-description?${params.toString()}`)
+    } catch {
+      setError('Something went wrong. Please try again.')
       setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-12 space-y-6 pb-12">
-      <h1 className="text-2xl font-semibold">Tell us about your background</h1>
+    <div className="max-w-2xl mx-auto px-4">
+      <StepProgress current={2} />
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Resume input */}
+      <div className="space-y-6 pb-12">
         <div>
-          <h2 className="font-medium mb-2">Your resume</h2>
-          <div className="flex gap-2 mb-3">
-            <button
-              type="button"
-              onClick={() => setMode('upload')}
-              className={`px-4 py-2 rounded text-sm ${mode === 'upload' ? 'bg-black text-white' : 'border'}`}
-            >
-              Upload existing resume
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('manual')}
-              className={`px-4 py-2 rounded text-sm ${mode === 'manual' ? 'bg-black text-white' : 'border'}`}
-            >
-              Type it manually
-            </button>
+          <h1 className="text-xl font-semibold">Auto-fill from your existing CV</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Upload your existing CV to auto-fill the form, or fill in your details manually.
+          </p>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('upload')}
+                className={`text-sm border rounded px-3 py-1.5 ${mode === 'upload' ? 'border-black bg-gray-50' : 'border-gray-200'}`}
+              >
+                Upload existing resume
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('manual')}
+                className={`text-sm border rounded px-3 py-1.5 ${mode === 'manual' ? 'border-black bg-gray-50' : 'border-gray-200'}`}
+              >
+                Type it manually
+              </button>
+            </div>
+
+            {mode === 'upload' ? (
+              <div className="border-2 border-dashed rounded p-6 text-center">
+                <input type="file" accept=".pdf,.docx" onChange={handleFileChange} />
+                <p className="text-xs text-gray-500 mt-2">PDF or Word, max 5MB</p>
+                {file && <p className="text-sm mt-2">Selected: {file.name}</p>}
+              </div>
+            ) : (
+              <textarea
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                placeholder="Paste or type your work experience..."
+                className="w-full h-48 border rounded p-3 text-sm"
+                maxLength={MAX_MANUAL_LENGTH}
+              />
+            )}
           </div>
 
-          {mode === 'upload' ? (
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <input
-                type="file"
-                accept=".pdf,.docx"
-                onChange={handleFileChange}
-                className="block w-full text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-2">PDF or Word, max 5MB</p>
-              {file && <p className="text-sm mt-2 text-green-700">Selected: {file.name}</p>}
-            </div>
-          ) : (
-            <textarea
-              value={manualText}
-              onChange={(e) => setManualText(e.target.value)}
-              placeholder="Paste or type your work experience, education, skills, projects, etc."
-              className="w-full border rounded px-3 py-2 h-48"
-              maxLength={MAX_MANUAL_LENGTH}
+          <div className="border rounded p-4 space-y-2">
+            <h2 className="font-medium">Target Role *</h2>
+            <input
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              placeholder="e.g. Software Engineer, Data Analyst, Marketing Manager"
+              className="w-full border rounded px-3 py-2 text-sm"
             />
-          )}
-        </div>
+            <p className="text-xs text-gray-500">
+              The AI will tailor the CV to this specific role and extract matching keywords from your JD.
+            </p>
+          </div>
 
-        {/* JD input */}
-        <div>
-          <h2 className="font-medium mb-2">Job description you&apos;re targeting</h2>
-          <textarea
-            value={jdText}
-            onChange={(e) => setJdText(e.target.value)}
-            placeholder="Paste the exact job description here."
-            className="w-full border rounded px-3 py-2 h-48"
-            maxLength={MAX_JD_LENGTH}
-          />
-          <p className="text-xs text-gray-500 mt-1">{jdText.length}/{MAX_JD_LENGTH} characters</p>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white rounded py-2 disabled:opacity-50"
-        >
-          {loading ? 'Saving...' : 'Continue'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Continue to Job Description →'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

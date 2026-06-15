@@ -1,7 +1,10 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import StepProgress from '@/components/StepProgress'
+import { createClient } from '@/lib/supabase/client'
+import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 
 interface EditableResume {
   contact: {
@@ -70,9 +73,31 @@ interface ParsedResume {
 }
 
 function ReviewPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const resumeId = searchParams.get('resume_id')
   const jdId = searchParams.get('jd_id')
+
+  const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    async function loadPreflightResponses() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('preflight_responses')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.preflight_responses) {
+        setPreflightResponses(profile.preflight_responses as Record<string, boolean>)
+      }
+    }
+    loadPreflightResponses()
+  }, [])
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,43 +123,7 @@ function ReviewPageContent() {
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
-  const [preflightChecks, setPreflightChecks] = useState<Array<{ type: string; jd_requirement: string; guidance: string }>>([])
-  const [loadingPreflight, setLoadingPreflight] = useState(false)
-  const [preflightChecked, setPreflightChecked] = useState(false)
-  const [preflightResponses, setPreflightResponses] = useState<Record<number, 'yes' | 'no' | 'unsure'>>({})
   const [currentStep, setCurrentStep] = useState(0)
-
-  async function handlePreflightCheck() {
-    if (!jdId) {
-      setError('Missing job description ID.')
-      return
-    }
-
-    setLoadingPreflight(true)
-    setError(null)
-
-    try {
-      const res = await fetch('/api/jd/preflight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jd_id: jdId }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong.')
-        return
-      }
-
-      setPreflightChecks(data.checks)
-      setPreflightChecked(true)
-    } catch {
-      setError('Network error. Please try again.')
-    } finally {
-      setLoadingPreflight(false)
-    }
-  }
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -260,22 +249,19 @@ function ReviewPageContent() {
     setError(null)
 
     const preflightFacts: string[] = []
-    console.log('[DEBUG] preflightChecks:', JSON.stringify(preflightChecks))
-    console.log('[DEBUG] preflightResponses:', JSON.stringify(preflightResponses))
-    preflightChecks.forEach((check, i) => {
-      const response = preflightResponses[i]
-      if (response === 'yes') {
-        if (check.type === 'driving_license') {
-          preflightFacts.push('Candidate holds a valid driving license.')
-        } else if (check.type === 'work_authorization') {
-          preflightFacts.push('Candidate has confirmed right to work in the target country.')
-        } else if (check.type === 'relocation') {
-          preflightFacts.push('Candidate is willing to relocate for this role.')
-        } else if (check.type === 'visa') {
-          preflightFacts.push('Candidate is eligible for or interested in visa sponsorship for this role.')
+      PREFLIGHT_CHECKLIST.forEach((item) => {
+        if (preflightResponses[item.key]) {
+          if (item.key === 'right_to_work') {
+            preflightFacts.push('Candidate has confirmed right to work in the target country.')
+          } else if (item.key === 'requires_visa_sponsorship') {
+            preflightFacts.push('Candidate is eligible for or interested in visa sponsorship for this role.')
+          } else if (item.key === 'holds_driving_license') {
+            preflightFacts.push('Candidate holds a valid driving license.')
+          } else if (item.key === 'willing_to_relocate') {
+            preflightFacts.push('Candidate is willing to relocate for this role.')
+          }
         }
-      }
-    })
+      })
 
     try {
       const res = await fetch('/api/resume/generate', {
@@ -538,164 +524,10 @@ function ReviewPageContent() {
 
   return (
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
+      <StepProgress current={4} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {currentStep === 0 && (
-        <div>
-          {!preflightChecked && (
-            <div className="mb-6">
-              <button
-                onClick={handlePreflightCheck}
-                disabled={loadingPreflight}
-                className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
-              >
-                {loadingPreflight ? 'Checking job requirements...' : 'Run pre-flight check on this job'}
-              </button>
-            </div>
-          )}
-
-          {preflightChecked && preflightChecks.length > 0 && (
-            <div className="space-y-2 mb-6">
-              <h2 className="font-medium text-lg text-amber-700">Before you apply — things to verify</h2>
-              {preflightChecks.map((check, i) => (
-                <div key={i} className="border border-amber-300 bg-amber-50 rounded p-3 text-sm">
-                  <p className="text-xs uppercase text-amber-700 mb-1">{check.type.replace('_', ' ')}</p>
-                  <p className="font-medium">{check.jd_requirement}</p>
-                  <p className="text-gray-700 mt-1">{check.guidance}</p>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-xs text-gray-600 self-center">Does this apply to you?</span>
-                    {(['yes', 'no', 'unsure'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setPreflightResponses((prev) => ({ ...prev, [i]: option }))}
-                        className={`text-xs px-2 py-1 rounded border ${
-                          preflightResponses[i] === option
-                            ? 'bg-black text-white border-black'
-                            : 'bg-white border-gray-300 hover:border-black'
-                        }`}
-                      >
-                        {option === 'yes' ? 'Yes' : option === 'no' ? 'No' : 'Not sure'}
-                      </button>
-                    ))}
-                  </div>
-                  {check.type === 'visa' && preflightResponses[i] === 'no' && check.jd_requirement.toLowerCase().includes('sponsorship') === false && (
-                    <p className="text-red-700 text-xs mt-2 font-medium">
-                      ⚠ This may be a blocker for this role. Consider whether to proceed with this application.
-                    </p>
-                  )}
-                  {(check.type === 'driving_license' || check.type === 'work_authorization') && preflightResponses[i] === 'yes' && (
-                    <p className="text-green-700 text-xs mt-2">
-                      ✓ This will be noted for your resume.
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {preflightChecked && preflightChecks.length === 0 && (
-            <div className="mb-6">
-              <p className="text-sm text-green-700">✓ No special visa, license, or relocation requirements detected for this role.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {currentStep === 1 && (
-        <div className="space-y-6">
-          <h1 className="text-2xl font-semibold">Review your parsed resume</h1>
-          <p className="text-sm text-gray-500">resume_id: {resumeId} | jd_id: {jdId}</p>
-
-          <button
-            onClick={handleParse}
-            disabled={loading || !resumeId}
-            className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
-          >
-            {loading ? 'Parsing...' : 'Parse my resume'}
-          </button>
-
-          {parsed && (
-            <div className="space-y-6">
-              <section>
-                <h2 className="font-medium text-lg mb-2">Contact</h2>
-                <pre className="bg-gray-50 border rounded p-3 text-sm overflow-x-auto">
-                  {JSON.stringify(parsed.contact, null, 2)}
-                </pre>
-              </section>
-
-              {parsed.summary && (
-                <section>
-                  <h2 className="font-medium text-lg mb-2">Summary</h2>
-                  <p className="text-sm bg-gray-50 border rounded p-3">{parsed.summary}</p>
-                </section>
-              )}
-
-              <section>
-                <h2 className="font-medium text-lg mb-2">Work Experience ({parsed.work_experience.length})</h2>
-                <div className="space-y-3">
-                  {parsed.work_experience.map((exp, i) => (
-                    <div key={i} className="border rounded p-3 text-sm">
-                      <p className="font-medium">{exp.title} — {exp.company}</p>
-                      <p className="text-gray-500">{exp.start_date} to {exp.end_date} {exp.location && `• ${exp.location}`}</p>
-                      <ul className="list-disc pl-5 mt-1">
-                        {exp.responsibilities.map((r, j) => <li key={j}>{r}</li>)}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h2 className="font-medium text-lg mb-2">Education ({parsed.education.length})</h2>
-                <div className="space-y-2">
-                  {parsed.education.map((edu, i) => (
-                    <div key={i} className="border rounded p-3 text-sm">
-                      <p className="font-medium">{edu.degree} — {edu.institution}</p>
-                      <p className="text-gray-500">{edu.start_date} to {edu.end_date}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h2 className="font-medium text-lg mb-2">Skills ({parsed.skills.length})</h2>
-                <div className="flex flex-wrap gap-2">
-                  {parsed.skills.map((skill, i) => (
-                    <span key={i} className="bg-gray-100 border rounded px-2 py-1 text-xs">{skill}</span>
-                  ))}
-                </div>
-              </section>
-
-              {parsed.projects.length > 0 && (
-                <section>
-                  <h2 className="font-medium text-lg mb-2">Projects ({parsed.projects.length})</h2>
-                  <div className="space-y-2">
-                    {parsed.projects.map((proj, i) => (
-                      <div key={i} className="border rounded p-3 text-sm">
-                        <p className="font-medium">{proj.name}</p>
-                        <p>{proj.description}</p>
-                        <p className="text-gray-500 text-xs mt-1">{proj.technologies.join(', ')}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {parsed.certifications.length > 0 && (
-                <section>
-                  <h2 className="font-medium text-lg mb-2">Certifications</h2>
-                  <ul className="list-disc pl-5 text-sm">
-                    {parsed.certifications.map((cert, i) => <li key={i}>{cert}</li>)}
-                  </ul>
-                </section>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {currentStep === 2 && (
         <div className="space-y-6">
           <button
             onClick={handleAnalyzeGap}
@@ -758,11 +590,20 @@ function ReviewPageContent() {
         </div>
       )}
 
-      {currentStep === 3 && (
+      {currentStep === 1 && (
         <div>
           {questions.length > 0 && (
             <div className="space-y-4">
-              <h2 className="font-medium text-lg">Interactive Questions</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="font-medium text-lg">Interactive Questions</h2>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className="text-sm text-gray-500 hover:text-black underline"
+                >
+                  Skip questions and continue →
+                </button>
+              </div>
               {questions.map((q) => (
                 <div key={q.id} className="border rounded p-4 space-y-2">
                   <p className="text-xs text-gray-500 uppercase">{q.target_skill}</p>
@@ -832,59 +673,11 @@ function ReviewPageContent() {
         </div>
       )}
 
-      {currentStep === 4 && (
+      {currentStep === 2 && (
         <div>
           {validationSaved && (
             <div className="space-y-4">
               <h2 className="font-medium text-lg">Final Output</h2>
-
-              {preflightChecked && (
-                <div className="border rounded p-4 bg-gray-50 space-y-2">
-                  <h3 className="font-medium text-sm uppercase text-gray-500">Pre-Flight Audit Status</h3>
-                  {preflightChecks.map((check, i) => {
-                    const response = preflightResponses[i]
-                    const label = check.type.replace('_', ' ').toUpperCase()
-                    let statusIcon = '○'
-                    let statusColor = 'text-gray-400'
-                    let statusText = 'Not answered'
-
-                    if (response === 'yes') {
-                      statusIcon = '✓'
-                      statusColor = 'text-green-600'
-                      statusText = check.type === 'visa'
-                        ? 'Visa sponsorship required / eligible'
-                        : check.type === 'driving_license'
-                        ? 'Holds a valid driving license'
-                        : check.type === 'work_authorization'
-                        ? 'Has right to work confirmed'
-                        : 'Willing to relocate'
-                    } else if (response === 'no') {
-                      statusIcon = '✗'
-                      statusColor = 'text-red-600'
-                      statusText = check.type === 'visa'
-                        ? 'No visa sponsorship needed / not eligible'
-                        : check.type === 'driving_license'
-                        ? 'Does not hold a driving license'
-                        : check.type === 'work_authorization'
-                        ? 'Right to work not confirmed'
-                        : 'Not willing to relocate'
-                    } else if (response === 'unsure') {
-                      statusIcon = '!'
-                      statusColor = 'text-amber-600'
-                      statusText = 'Marked as unsure — verify before applying'
-                    }
-
-                    return (
-                      <div key={i} className="flex items-start gap-2 text-sm">
-                        <span className={`font-mono ${statusColor}`}>[{statusIcon}]</span>
-                        <div>
-                          <span className="font-medium">{label}:</span> <span className={statusColor}>{statusText}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
 
               <button
                 onClick={handleGenerateResume}
@@ -1141,6 +934,15 @@ function ReviewPageContent() {
               )}
             </div>
           )}
+
+          {finalResume && (
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium mt-4"
+            >
+              Finish → Go to Dashboard
+            </button>
+          )}
         </div>
       )}
 
@@ -1152,10 +954,10 @@ function ReviewPageContent() {
         >
           ← Back
         </button>
-        <span className="text-xs text-gray-400">Step {currentStep + 1} of 5</span>
+        <span className="text-xs text-gray-400">Step {currentStep + 1} of 3</span>
         <button
-          onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
-          disabled={currentStep === 4}
+          onClick={() => setCurrentStep((s) => Math.min(2, s + 1))}
+          disabled={currentStep === 2}
           className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Continue →

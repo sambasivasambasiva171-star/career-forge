@@ -62,3 +62,18 @@ export const generateResumeWithFactsSchema = z.object({
 export const renderResumePdfSchema = z.object({
   resume_data: z.record(z.string(), z.unknown()),
 })
+
+export const updateProfileSchema = z.object({
+  persona_type: z.enum(['fresher', 'experienced']).optional(),
+  location: z.string().max(200).optional(),
+})
+
+export const updateProfileStep1Schema = z.object({
+  persona_type: z.enum(['fresher', 'experienced']),
+  job_market: z.enum(['IN', 'GB', 'GLOBAL']),
+  preflight_responses: z.record(z.string(), z.boolean()),
+})
+
+export const targetRoleSchema = z.object({
+  target_role: z.string().max(200).optional(),
+})
