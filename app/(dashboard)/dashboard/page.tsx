@@ -83,7 +83,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => router.push('/upload')}
-            className="bg-black text-white rounded px-4 py-2 text-sm font-medium whitespace-nowrap"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium whitespace-nowrap"
           >
             + New Application
           </button>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
             <p>You haven&apos;t generated any documents yet.</p>
             <button
               onClick={() => router.push('/upload')}
-              className="mt-4 bg-black text-white rounded px-4 py-2 text-sm font-medium"
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium"
             >
               Start your first application →
             </button>
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                   {group.resume_doc_id && (
                     <a
                       href="/api/resume/pdf"
-                      className="text-sm border rounded px-3 py-1.5 hover:border-black"
+                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
                     >
                       Download Resume PDF
                     </a>
@@ -121,7 +121,7 @@ export default function DashboardPage() {
                   {group.cover_letter_doc_id && (
                     <a
                       href="/api/cover-letter/pdf"
-                      className="text-sm border rounded px-3 py-1.5 hover:border-black"
+                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
                     >
                       Download Cover Letter PDF
                     </a>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
                   {group.resume_id && (
                     <button
                       onClick={() => router.push(`/review?resume_id=${group.resume_id}&jd_id=${group.jd_id}`)}
-                      className="text-sm border rounded px-3 py-1.5 hover:border-black"
+                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
                     >
                       Open in Review
                     </button>

@@ -136,7 +136,7 @@ export default function AccountPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-black text-white rounded px-4 py-2 text-sm disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save changes'}
         </button>

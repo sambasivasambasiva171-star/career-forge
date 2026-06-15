@@ -101,7 +101,7 @@ export default function ProfilePage() {
         <button
           type="button"
           onClick={detectBrowserLocation}
-          className="w-full border rounded py-2 text-sm hover:border-black transition"
+          className="w-full border rounded py-2 text-sm hover:border-blue-600 transition"
         >
           📍 Detect my location automatically
         </button>
@@ -109,7 +109,7 @@ export default function ProfilePage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-black text-white rounded py-2 disabled:opacity-50"
+          className="w-full bg-blue-600 text-white rounded py-2 disabled:opacity-50"
         >
           {loading ? 'Saving...' : 'Continue'}
         </button>

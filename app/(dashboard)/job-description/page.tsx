@@ -105,7 +105,7 @@ function JobDescriptionContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Continue to Generate CV →'}
           </button>

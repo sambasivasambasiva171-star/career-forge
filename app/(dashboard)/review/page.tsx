@@ -532,7 +532,7 @@ function ReviewPageContent() {
           <button
             onClick={handleAnalyzeGap}
             disabled={analyzing}
-            className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
           >
             {analyzing ? 'Analyzing...' : 'Analyze skill gaps vs JD'}
           </button>
@@ -582,7 +582,7 @@ function ReviewPageContent() {
             <button
               onClick={handleGenerateQuestions}
               disabled={generatingQuestions}
-              className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
             >
               {generatingQuestions ? 'Generating questions...' : 'Generate interactive questions'}
             </button>
@@ -599,7 +599,7 @@ function ReviewPageContent() {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="text-sm text-gray-500 hover:text-black underline"
+                  className="text-sm text-gray-500 hover:text-blue-600 underline"
                 >
                   Skip questions and continue →
                 </button>
@@ -661,7 +661,7 @@ function ReviewPageContent() {
                     <button
                       onClick={handleSaveValidation}
                       disabled={savingValidation}
-                      className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
                     >
                       {savingValidation ? 'Saving...' : 'Save my selections'}
                     </button>
@@ -682,7 +682,7 @@ function ReviewPageContent() {
               <button
                 onClick={handleGenerateResume}
                 disabled={generatingResume}
-                className="bg-black text-white rounded px-4 py-2 disabled:opacity-50 mr-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50 mr-2"
               >
                 {generatingResume ? 'Generating resume...' : 'Generate optimized resume'}
               </button>
@@ -696,7 +696,7 @@ function ReviewPageContent() {
                     <button
                       onClick={handleDownloadPdf}
                       disabled={downloadingPdf}
-                      className="bg-black text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
                     >
                       {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
                     </button>
@@ -889,7 +889,7 @@ function ReviewPageContent() {
                   <button
                     onClick={handleGenerateCoverLetter}
                     disabled={generatingCoverLetter}
-                    className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
+                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50"
                   >
                     {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
                   </button>
@@ -898,7 +898,7 @@ function ReviewPageContent() {
                     <div className="space-y-2 mt-3">
                       <a
                         href="/api/cover-letter/pdf"
-                        className="inline-block border rounded px-4 py-2 text-sm hover:border-black"
+                        className="inline-block border rounded px-4 py-2 text-sm hover:border-blue-600"
                       >
                         Download cover letter PDF
                       </a>
@@ -915,7 +915,7 @@ function ReviewPageContent() {
                   <button
                     onClick={handleGenerateNetworking}
                     disabled={generatingNetworking}
-                    className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
+                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50"
                   >
                     {generatingNetworking ? 'Generating suggestions...' : 'Get networking suggestions'}
                   </button>
@@ -938,7 +938,7 @@ function ReviewPageContent() {
           {finalResume && (
             <button
               onClick={() => router.push('/dashboard')}
-              className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium mt-4"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-3 text-sm font-medium mt-4"
             >
               Finish → Go to Dashboard
             </button>
@@ -950,7 +950,7 @@ function ReviewPageContent() {
         <button
           onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
           disabled={currentStep === 0}
-          className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-30 disabled:cursor-not-allowed"
+          className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           ← Back
         </button>
@@ -958,7 +958,7 @@ function ReviewPageContent() {
         <button
           onClick={() => setCurrentStep((s) => Math.min(2, s + 1))}
           disabled={currentStep === 2}
-          className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-30 disabled:cursor-not-allowed"
+          className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Continue →
         </button>

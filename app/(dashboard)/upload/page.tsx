@@ -181,14 +181,14 @@ export default function UploadPage() {
               <button
                 type="button"
                 onClick={() => setMode('upload')}
-                className={`text-sm border rounded px-3 py-1.5 ${mode === 'upload' ? 'border-black bg-gray-50' : 'border-gray-200'}`}
+                className={`text-sm border rounded px-3 py-1.5 ${mode === 'upload' ? 'border-blue-600 bg-gray-50' : 'border-gray-200'}`}
               >
                 Upload existing resume
               </button>
               <button
                 type="button"
                 onClick={() => setMode('manual')}
-                className={`text-sm border rounded px-3 py-1.5 ${mode === 'manual' ? 'border-black bg-gray-50' : 'border-gray-200'}`}
+                className={`text-sm border rounded px-3 py-1.5 ${mode === 'manual' ? 'border-blue-600 bg-gray-50' : 'border-gray-200'}`}
               >
                 Type it manually
               </button>
@@ -227,7 +227,7 @@ export default function UploadPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Processing...' : 'Continue to Job Description →'}
           </button>

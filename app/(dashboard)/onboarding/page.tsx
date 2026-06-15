@@ -99,14 +99,14 @@ export default function OnboardingPage() {
           <div className="grid grid-cols-2 gap-3 mt-3">
             <button
               onClick={() => setPersonaType('fresher')}
-              className={`border rounded p-4 text-left transition ${personaType === 'fresher' ? 'border-black ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+              className={`border rounded p-4 text-left transition ${personaType === 'fresher' ? 'border-blue-600 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-400'}`}
             >
               <p className="font-medium">Fresher / Entry-level</p>
               <p className="text-xs text-gray-500 mt-1">0-2 years experience, recent graduate or career starter.</p>
             </button>
             <button
               onClick={() => setPersonaType('experienced')}
-              className={`border rounded p-4 text-left transition ${personaType === 'experienced' ? 'border-black ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+              className={`border rounded p-4 text-left transition ${personaType === 'experienced' ? 'border-blue-600 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-400'}`}
             >
               <p className="font-medium">Experienced Professional</p>
               <p className="text-xs text-gray-500 mt-1">2+ years experience, professional work history.</p>
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
               <button
                 key={market.code}
                 onClick={() => setJobMarket(market.code)}
-                className={`border rounded p-3 text-center text-sm transition ${jobMarket === market.code ? 'border-black ring-1 ring-black bg-gray-50' : 'border-gray-200 hover:border-gray-400'}`}
+                className={`border rounded p-3 text-center text-sm transition ${jobMarket === market.code ? 'border-blue-600 ring-1 ring-blue-600 bg-gray-50' : 'border-gray-200 hover:border-gray-400'}`}
               >
                 <span className="block font-medium">{market.code === 'GLOBAL' ? 'Global' : market.code}</span>
                 <span className="block text-xs text-gray-500">{market.label}</span>
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
         <button
           onClick={handleContinue}
           disabled={saving}
-          className="w-full bg-black text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Continue to Your Details →'}
         </button>

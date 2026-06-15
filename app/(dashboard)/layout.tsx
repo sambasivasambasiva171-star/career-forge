@@ -7,10 +7,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="border-b bg-white px-6 py-4 flex items-center justify-between">
         <Link href="/upload" className="font-semibold">Career Forge</Link>
         <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dashboard" className="text-gray-600 hover:text-black">Dashboard</Link>
-          <Link href="/upload" className="text-gray-600 hover:text-black">Upload</Link>
-          <Link href="/review" className="text-gray-600 hover:text-black">Review</Link>
-          <Link href="/account" className="text-gray-600 hover:text-black">Account</Link>
+          <Link href="/dashboard" className="text-gray-600 hover:text-blue-600">Dashboard</Link>
+          <Link href="/upload" className="text-gray-600 hover:text-blue-600">Upload</Link>
+          <Link href="/review" className="text-gray-600 hover:text-blue-600">Review</Link>
+          <Link href="/account" className="text-gray-600 hover:text-blue-600">Account</Link>
           <SignOutButton />
         </nav>
       </header>
