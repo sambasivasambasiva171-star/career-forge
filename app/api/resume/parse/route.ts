@@ -4,7 +4,7 @@ import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { RESUME_PARSE_SYSTEM_PROMPT, buildResumeParseUserPrompt } from '@/lib/ai/prompts/resume-parse'
 import { parseResumeSchema } from '@/lib/validation/schemas'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PDFParse } = require('pdf-parse')
+const pdfParse = require('pdf-parse')
 
 const MIN_EXTRACTED_TEXT_LENGTH = 50 // heuristic: below this, likely a scanned/image PDF
 
@@ -76,9 +76,8 @@ export async function POST(request: NextRequest) {
 
     if (filename?.toLowerCase().endsWith('.pdf')) {
       try {
-        const parser = new PDFParse({ data: buffer })
-        const pdfData = await parser.getText()
-        rawText = pdfData.text
+        const result = await pdfParse(buffer)
+        rawText = result.text
       } catch (err) {
         console.error('PDF parse error:', err)
         return NextResponse.json(
