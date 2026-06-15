@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserPrompt } from '@/lib/ai/prompts/resume-generate'
 import { generateResumeSchema } from '@/lib/validation/schemas'
+import { deriveLanguageVariant } from '@/lib/utils/location'
 
 interface CoverLetterResult {
   cover_letter_text: string
@@ -57,11 +58,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No generated resume found. Please generate your resume first.' }, { status: 400 })
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('location')
+    .eq('id', user.id)
+    .single()
+
+  const languageVariant = deriveLanguageVariant(profile?.location ?? null)
+
   let result: CoverLetterResult
   try {
     const aiResponse = await getCompletion({
       systemPrompt: COVER_LETTER_SYSTEM_PROMPT,
-      userPrompt: buildCoverLetterUserPrompt(latestResume.content_json, jd.raw_text),
+      userPrompt: buildCoverLetterUserPrompt(latestResume.content_json, jd.raw_text, languageVariant),
       temperature: 0.4,
       maxTokens: 1024,
     })

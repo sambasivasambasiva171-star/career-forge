@@ -16,8 +16,10 @@ export async function getCompletion({
   temperature?: number
   maxTokens?: number
 }): Promise<string> {
+  const NIM_MODEL = process.env.NVIDIA_NIM_MODEL ?? 'meta/llama-3.1-70b-instruct'
+  const startTime = Date.now()
   const completion = await nimClient.chat.completions.create({
-    model: process.env.NVIDIA_NIM_MODEL ?? 'meta/llama-3.1-70b-instruct',
+    model: NIM_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -25,6 +27,8 @@ export async function getCompletion({
     temperature,
     max_tokens: maxTokens,
   })
+  const duration = Date.now() - startTime
+  console.log(`[AI TIMING] Model: ${NIM_MODEL}, Duration: ${duration}ms`)
 
   const content = completion.choices[0]?.message?.content
   if (!content) throw new Error('Empty response from AI')

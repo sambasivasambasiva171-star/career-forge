@@ -63,6 +63,42 @@ export default function ReviewPage() {
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
+  const [preflightChecks, setPreflightChecks] = useState<Array<{ type: string; jd_requirement: string; guidance: string }>>([])
+  const [loadingPreflight, setLoadingPreflight] = useState(false)
+  const [preflightChecked, setPreflightChecked] = useState(false)
+  const [preflightResponses, setPreflightResponses] = useState<Record<number, 'yes' | 'no' | 'unsure'>>({})
+
+  async function handlePreflightCheck() {
+    if (!jdId) {
+      setError('Missing job description ID.')
+      return
+    }
+
+    setLoadingPreflight(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/jd/preflight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jd_id: jdId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setPreflightChecks(data.checks)
+      setPreflightChecked(true)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoadingPreflight(false)
+    }
+  }
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -333,6 +369,59 @@ export default function ReviewPage() {
 
   return (
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
+      {!preflightChecked && (
+        <div className="mb-6">
+          <button
+            onClick={handlePreflightCheck}
+            disabled={loadingPreflight}
+            className="border rounded px-4 py-2 text-sm hover:border-black disabled:opacity-50"
+          >
+            {loadingPreflight ? 'Checking job requirements...' : 'Run pre-flight check on this job'}
+          </button>
+        </div>
+      )}
+
+      {preflightChecked && preflightChecks.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <h2 className="font-medium text-lg text-amber-700">Before you apply — things to verify</h2>
+          {preflightChecks.map((check, i) => (
+            <div key={i} className="border border-amber-300 bg-amber-50 rounded p-3 text-sm">
+              <p className="text-xs uppercase text-amber-700 mb-1">{check.type.replace('_', ' ')}</p>
+              <p className="font-medium">{check.jd_requirement}</p>
+              <p className="text-gray-700 mt-1">{check.guidance}</p>
+              <div className="flex gap-2 mt-2">
+                <span className="text-xs text-gray-600 self-center">Does this apply to you?</span>
+                {(['yes', 'no', 'unsure'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setPreflightResponses((prev) => ({ ...prev, [i]: option }))}
+                    className={`text-xs px-2 py-1 rounded border ${
+                      preflightResponses[i] === option
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white border-gray-300 hover:border-black'
+                    }`}
+                  >
+                    {option === 'yes' ? 'Yes' : option === 'no' ? 'No' : 'Not sure'}
+                  </button>
+                ))}
+              </div>
+              {check.type === 'visa' && preflightResponses[i] === 'no' && check.jd_requirement.toLowerCase().includes('sponsorship') === false && (
+                <p className="text-red-700 text-xs mt-2 font-medium">
+                  ⚠ This may be a blocker for this role. Consider whether to proceed with this application.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {preflightChecked && preflightChecks.length === 0 && (
+        <div className="mb-6">
+          <p className="text-sm text-green-700">✓ No special visa, license, or relocation requirements detected for this role.</p>
+        </div>
+      )}
+
       <h1 className="text-2xl font-semibold">Review your parsed resume</h1>
       <p className="text-sm text-gray-500">resume_id: {resumeId} | jd_id: {jdId}</p>
 
@@ -583,8 +672,16 @@ export default function ReviewPage() {
               </button>
 
               {coverLetter && (
-                <div className="bg-gray-50 border rounded p-4 mt-3 text-sm whitespace-pre-wrap">
-                  {coverLetter}
+                <div className="space-y-2 mt-3">
+                  <a
+                    href="/api/cover-letter/pdf"
+                    className="inline-block border rounded px-4 py-2 text-sm hover:border-black"
+                  >
+                    Download cover letter PDF
+                  </a>
+                  <div className="bg-gray-50 border rounded p-4 text-sm whitespace-pre-wrap">
+                    {coverLetter}
+                  </div>
                 </div>
               )}
             </div>

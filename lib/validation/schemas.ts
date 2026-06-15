@@ -39,3 +39,7 @@ export const generateResumeSchema = z.object({
 export const generateNetworkingSchema = z.object({
   jd_id: z.string().uuid(),
 })
+
+export const preFlightCheckSchema = z.object({
+  jd_id: z.string().uuid(),
+})

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(echo \"NVIDIA_NIM_MODEL=meta/llama-3.1-8b-instruct\" >> .env.local)",
+      "Bash(pkill -9 -f \"next dev\")",
+      "Bash(npm run *)",
+      "Bash(pkill -9 -f \"next\")",
+      "Bash(xargs kill -9)"
+    ],
+    "additionalDirectories": [
+      "/workspaces/career-forge"
+    ]
+  }
+}

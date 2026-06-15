@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { RESUME_GENERATE_SYSTEM_PROMPT, buildResumeGenerateUserPrompt } from '@/lib/ai/prompts/resume-generate'
 import { generateResumeSchema } from '@/lib/validation/schemas'
+import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('persona_type')
+    .select('persona_type, location')
     .eq('id', user.id)
     .single()
 
@@ -69,12 +70,13 @@ export async function POST(request: NextRequest) {
   }
 
   const validatedAdditions = Array.isArray(resume.validated_additions) ? resume.validated_additions : []
+  const languageVariant = deriveLanguageVariant(profile.location)
 
   let finalResume: object
   try {
     const aiResponse = await getCompletion({
       systemPrompt: RESUME_GENERATE_SYSTEM_PROMPT,
-      userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type),
+      userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type, languageVariant),
       temperature: 0.2,
       maxTokens: 3072,
     })
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: user.id,
       doc_type: 'resume',
-      content_json: finalResume,
+      content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant },
     })
     .select('id')
     .single()

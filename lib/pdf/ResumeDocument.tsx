@@ -56,6 +56,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 2,
   },
+  docTitle: {
+    fontSize: 10,
+    color: '#666666',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 })
 
 interface ResumeData {
@@ -66,6 +73,7 @@ interface ResumeData {
   skills: string[]
   projects: Array<{ name: string; description: string; technologies: string[] }>
   certifications: string[]
+  document_title?: string
 }
 
 export function ResumeDocument({ data }: { data: ResumeData }) {
@@ -74,6 +82,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {data.document_title && <Text style={styles.docTitle}>{data.document_title}</Text>}
         <Text style={styles.name}>{data.contact.name || 'Candidate Name'}</Text>
         {contactParts.length > 0 && <Text style={styles.contactLine}>{contactParts.join('  |  ')}</Text>}
 
