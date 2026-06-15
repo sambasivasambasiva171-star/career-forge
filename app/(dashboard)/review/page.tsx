@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 interface EditableResume {
@@ -69,7 +69,7 @@ interface ParsedResume {
   certifications: string[]
 }
 
-export default function ReviewPage() {
+function ReviewPageContent() {
   const searchParams = useSearchParams()
   const resumeId = searchParams.get('resume_id')
   const jdId = searchParams.get('jd_id')
@@ -1162,5 +1162,13 @@ export default function ReviewPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto mt-12 text-center text-gray-500">Loading...</div>}>
+      <ReviewPageContent />
+    </Suspense>
   )
 }
