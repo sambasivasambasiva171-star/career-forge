@@ -718,10 +718,14 @@ function ReviewPageContent() {
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  onClick={async () => {
+                    setCurrentStep(2)
+                    setValidationSaved(true)
+                    setTimeout(() => handleGenerateResume(), 100)
+                  }}
                   className="text-sm text-gray-500 hover:text-blue-600 underline"
                 >
-                  Skip and continue →
+                  Skip and generate CV →
                 </button>
               </div>
 

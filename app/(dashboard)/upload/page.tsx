@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
@@ -21,6 +21,37 @@ function UploadPageContent() {
   const searchParams = useSearchParams()
   const existingResumeId = searchParams.get('resume_id')
   const existingJdId = searchParams.get('jd_id')
+  const [existingFilename, setExistingFilename] = useState<string | null>(null)
+  const [existingJdPreview, setExistingJdPreview] = useState<string | null>(null)
+  const [loadingExisting, setLoadingExisting] = useState(false)
+
+  useEffect(() => {
+    if (!existingResumeId || !existingJdId) return
+
+    async function fetchExisting() {
+      setLoadingExisting(true)
+      const supabase = createClient()
+
+      const [{ data: resume }, { data: jd }] = await Promise.all([
+        supabase.from('resumes').select('parsed_json, source_type, raw_text').eq('id', existingResumeId).single(),
+        supabase.from('job_descriptions').select('raw_text').eq('id', existingJdId).single(),
+      ])
+
+      if (resume) {
+        const filename = (resume.parsed_json as { original_filename?: string })?.original_filename
+          || (resume.source_type === 'manual' ? 'Manually entered resume' : 'Uploaded resume')
+        setExistingFilename(filename)
+      }
+
+      if (jd?.raw_text) {
+        setExistingJdPreview(jd.raw_text.slice(0, 300))
+      }
+
+      setLoadingExisting(false)
+    }
+
+    fetchExisting()
+  }, [existingResumeId, existingJdId])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0]
@@ -143,18 +174,36 @@ function UploadPageContent() {
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {existingResumeId && existingJdId && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-900">You have a previous CV &amp; JD saved.</p>
-                <p className="text-xs text-blue-700 mt-0.5">Continue with it, or upload a new one below.</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-blue-900">Your previously uploaded CV &amp; JD</p>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/review?resume_id=${existingResumeId}&jd_id=${existingJdId}`)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 text-sm font-medium shrink-0 ml-4"
+                >
+                  Continue with these →
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => router.push(`/review?resume_id=${existingResumeId}&jd_id=${existingJdId}`)}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 text-sm font-medium shrink-0 ml-4"
-              >
-                Continue with existing →
-              </button>
+              {loadingExisting ? (
+                <p className="text-xs text-blue-600">Loading your saved data...</p>
+              ) : (
+                <>
+                  {existingFilename && (
+                    <div className="bg-white border border-blue-100 rounded p-2">
+                      <p className="text-xs text-blue-700 font-medium mb-0.5">CV / Resume</p>
+                      <p className="text-sm text-gray-700">📄 {existingFilename}</p>
+                    </div>
+                  )}
+                  {existingJdPreview && (
+                    <div className="bg-white border border-blue-100 rounded p-2">
+                      <p className="text-xs text-blue-700 font-medium mb-0.5">Job Description (preview)</p>
+                      <p className="text-sm text-gray-600 line-clamp-3">{existingJdPreview}{existingJdPreview.length === 300 ? '...' : ''}</p>
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-600">Or upload a new CV and JD below to start fresh.</p>
+                </>
+              )}
             </div>
           )}
 
