@@ -273,7 +273,7 @@ function ReviewPageContent() {
     }
   }
 
-  async function handleGenerateResume() {
+  async function handleGenerateResume(retryCount = 0) {
     if (!resumeId || !jdId) {
       setError('Missing resume or job description ID.')
       return
@@ -308,7 +308,12 @@ function ReviewPageContent() {
 
       if (!res.ok) {
         if (data.code === 'RESUME_NOT_PARSED') {
-          setTimeout(() => handleGenerateResume(), 3000)
+          if (retryCount >= 5) {
+            setError('Resume processing is taking longer than expected. Please try again.')
+            setGeneratingResume(false)
+            return
+          }
+          setTimeout(() => handleGenerateResume(retryCount + 1), 3000)
           return
         }
         setError(data.error || 'Something went wrong.')
@@ -871,7 +876,7 @@ function ReviewPageContent() {
               <h2 className="font-medium text-lg">Final Output</h2>
 
               <button
-                onClick={handleGenerateResume}
+                onClick={() => handleGenerateResume()}
                 disabled={generatingResume}
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50 mr-2"
               >

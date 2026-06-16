@@ -8,7 +8,7 @@ const redis = new Redis({
 
 export const aiLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(50, '1 h'),
+  limiter: Ratelimit.slidingWindow(100, '1 h'),
   prefix: 'ratelimit:ai',
 })
 
