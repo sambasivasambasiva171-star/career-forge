@@ -156,6 +156,7 @@ function ReviewPageContent() {
       }
 
       setQuestions(data.questions)
+      setCurrentStep(1)
     } catch {
       setError('Network error. Please try again.')
     } finally {
