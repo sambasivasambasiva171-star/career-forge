@@ -568,12 +568,26 @@ function ReviewPageContent() {
 
       {currentStep === 0 && (
         <div className="space-y-6">
-          <button
-            onClick={() => router.push(`/upload?resume_id=${resumeId}&jd_id=${jdId}`)}
-            className="text-sm text-gray-500 hover:text-blue-600"
-          >
-            ← Back to Details & JD
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.push(`/upload?resume_id=${resumeId}&jd_id=${jdId}`)}
+              className="text-sm text-gray-500 hover:text-blue-600"
+            >
+              ← Back to Details & JD
+            </button>
+            {gapAnalysis && (
+              <button
+                onClick={async () => {
+                  setValidationSaved(true)
+                  setCurrentStep(2)
+                  setTimeout(() => handleGenerateResume(), 500)
+                }}
+                className="text-sm bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 font-medium"
+              >
+                Skip to Generate CV →
+              </button>
+            )}
+          </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Skill Gap Analysis</h2>
             <p className="text-sm text-gray-500 mt-1">

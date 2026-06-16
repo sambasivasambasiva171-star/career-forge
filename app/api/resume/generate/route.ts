@@ -51,7 +51,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if (!resume.parsed_json) {
+  const parsedJson = resume.parsed_json as Record<string, unknown>
+  const isActuallyParsed = parsedJson &&
+    parsedJson.contact !== undefined &&
+    parsedJson.work_experience !== undefined
+
+  if (!isActuallyParsed) {
     return NextResponse.json({
       error: 'Resume is still being processed. Please wait a moment and try again.',
       code: 'RESUME_NOT_PARSED'
