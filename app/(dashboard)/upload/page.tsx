@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
 
@@ -10,7 +10,7 @@ const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-office
 const MAX_MANUAL_LENGTH = 20000
 const MAX_JD_LENGTH = 10000
 
-export default function UploadPage() {
+function UploadPageContent() {
   const [mode, setMode] = useState<'upload' | 'manual'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [manualText, setManualText] = useState('')
@@ -18,6 +18,9 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const existingResumeId = searchParams.get('resume_id')
+  const existingJdId = searchParams.get('jd_id')
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0]
@@ -121,6 +124,13 @@ export default function UploadPage() {
       <StepProgress current={2} />
 
       <div className="space-y-6 pb-12">
+        <button
+          type="button"
+          onClick={() => router.push('/onboarding')}
+          className="text-sm text-gray-500 hover:text-blue-600"
+        >
+          ← Back to Profile
+        </button>
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Your Details</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -131,6 +141,22 @@ export default function UploadPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {existingResumeId && existingJdId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900">You have a previous CV &amp; JD saved.</p>
+                <p className="text-xs text-blue-700 mt-0.5">Continue with it, or upload a new one below.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/review?resume_id=${existingResumeId}&jd_id=${existingJdId}`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 text-sm font-medium shrink-0 ml-4"
+              >
+                Continue with existing →
+              </button>
+            </div>
+          )}
 
           {/* Resume section */}
           <div className="bg-white border rounded-lg p-4 shadow-sm space-y-3">
@@ -193,5 +219,13 @@ export default function UploadPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto px-4 py-12 text-gray-500">Loading...</div>}>
+      <UploadPageContent />
+    </Suspense>
   )
 }

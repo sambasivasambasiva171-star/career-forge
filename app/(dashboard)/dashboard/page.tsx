@@ -82,7 +82,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <button
-            onClick={() => router.push('/upload')}
+            onClick={() => router.push('/onboarding')}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium whitespace-nowrap"
           >
             + New Application
@@ -93,7 +93,7 @@ export default function DashboardPage() {
           <div className="border rounded p-8 text-center text-gray-500 text-sm">
             <p>You haven&apos;t generated any documents yet.</p>
             <button
-              onClick={() => router.push('/upload')}
+              onClick={() => router.push('/onboarding')}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium"
             >
               Start your first application →

@@ -79,12 +79,17 @@ function ReviewPageContent() {
   const jdId = searchParams.get('jd_id')
 
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
+  const [gapAnalysis, setGapAnalysis] = useState<{
+    matched_skills: Array<{ skill: string; evidence: string }>
+    missing_skills: Array<{ skill: string; jd_context: string }>
+    partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
+  } | null>(null)
 
   useEffect(() => {
-    if (resumeId && jdId) {
+    if (resumeId && jdId && !gapAnalysis) {
       handleAnalyzeGap()
     }
-  }, [resumeId, jdId])
+  }, [resumeId, jdId, gapAnalysis])
 
   useEffect(() => {
     async function loadPreflightResponses() {
@@ -109,11 +114,6 @@ function ReviewPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedResume | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const [gapAnalysis, setGapAnalysis] = useState<{
-    matched_skills: Array<{ skill: string; evidence: string }>
-    missing_skills: Array<{ skill: string; jd_context: string }>
-    partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
-  } | null>(null)
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
   const [questions, setQuestions] = useState<Array<{ id: string; target_skill: string; question_text: string; work_experience_index?: number; responsibility_index?: number; existing_bullet?: string }>>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -539,7 +539,7 @@ function ReviewPageContent() {
       {currentStep === 0 && (
         <div className="space-y-6">
           <button
-            onClick={() => router.push('/upload')}
+            onClick={() => router.push(`/upload?resume_id=${resumeId}&jd_id=${jdId}`)}
             className="text-sm text-gray-500 hover:text-blue-600"
           >
             ← Back to Details & JD

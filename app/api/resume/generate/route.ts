@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('persona_type, location')
+    .select('persona_type, location, job_market')
     .eq('id', user.id)
     .single()
 
@@ -70,7 +70,11 @@ export async function POST(request: NextRequest) {
   }
 
   const validatedAdditions = Array.isArray(resume.validated_additions) ? resume.validated_additions : []
-  const languageVariant = deriveLanguageVariant(profile.location)
+  const languageVariant = profile.job_market === 'GB'
+    ? 'uk_english'
+    : profile.job_market === 'IN' || profile.job_market === 'GLOBAL'
+    ? 'us_english'
+    : deriveLanguageVariant(profile.location)
 
   let finalResume: object
   try {

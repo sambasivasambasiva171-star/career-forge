@@ -129,6 +129,11 @@ export default function OnboardingPage() {
                 <span className="block text-xs text-gray-500">{market.label}</span>
               </button>
             ))}
+            {jobMarket === 'GLOBAL' && (
+              <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2 col-span-3 mt-1">
+                Global applications use US English spelling and &quot;Resume&quot; as the document title.
+              </p>
+            )}
           </div>
         </div>
 

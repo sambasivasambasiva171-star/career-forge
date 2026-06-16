@@ -93,9 +93,10 @@ export async function POST(request: NextRequest) {
       systemPrompt,
       userPrompt: buildQuestionnaireUserPrompt(resume.parsed_json, skillGaps),
       temperature: 0.4,
-      maxTokens: 1024,
+      maxTokens: 2048,
     })
 
+    console.log('questionnaire raw AI response:', aiResponse)
     result = parseJsonResponse<QuestionnaireResult>(aiResponse)
   } catch (err) {
     console.error('Questionnaire generation AI error:', err)
