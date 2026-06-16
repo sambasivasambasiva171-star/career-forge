@@ -31,9 +31,10 @@ export default function OnboardingPage() {
         .single()
 
       if (profile) {
-        if (profile.persona_type) setPersonaType(profile.persona_type)
-        if (profile.job_market) setJobMarket(profile.job_market)
-        if (profile.preflight_responses) setResponses(profile.preflight_responses as Record<string, boolean>)
+        // Always start fresh — user must consciously select for each session
+        setPersonaType('')
+        setJobMarket('')
+        setResponses({})
       }
       setLoading(false)
     }

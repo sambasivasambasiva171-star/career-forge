@@ -5,7 +5,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white px-6 py-4 flex items-center justify-between">
-        <Link href="/upload" className="font-semibold">Career Forge</Link>
+        <Link href="/dashboard" className="font-semibold text-blue-600">Career Forge</Link>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/dashboard" className="text-gray-600 hover:text-blue-600">Dashboard</Link>
           <Link href="/upload" className="text-gray-600 hover:text-blue-600">Upload</Link>

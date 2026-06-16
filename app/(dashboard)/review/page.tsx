@@ -130,6 +130,7 @@ function ReviewPageContent() {
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
   const [currentStep, setCurrentStep] = useState(0)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -238,6 +239,8 @@ function ReviewPageContent() {
       }
 
       setValidationSaved(true)
+      setCurrentStep(2)
+      setTimeout(() => handleGenerateResume(), 100)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -535,6 +538,12 @@ function ReviewPageContent() {
 
       {currentStep === 0 && (
         <div className="space-y-6">
+          <button
+            onClick={() => router.push('/upload')}
+            className="text-sm text-gray-500 hover:text-blue-600"
+          >
+            ← Back to Details & JD
+          </button>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Skill Gap Analysis</h2>
             <p className="text-sm text-gray-500 mt-1">
@@ -679,87 +688,126 @@ function ReviewPageContent() {
         <div>
           {questions.length > 0 && (
             <div className="space-y-4">
+              <button
+                onClick={() => { setCurrentStep(0); setCurrentQuestionIndex(0) }}
+                className="text-sm text-gray-500 hover:text-blue-600"
+              >
+                ← Back to Skill Analysis
+              </button>
               <div className="flex items-center justify-between">
-                <h2 className="font-medium text-lg">Interactive Questions</h2>
+                <h2 className="font-medium text-lg">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </h2>
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
                   className="text-sm text-gray-500 hover:text-blue-600 underline"
                 >
-                  Skip questions and continue →
+                  Skip and continue →
                 </button>
               </div>
-              {questions.map((q) => (
-                <div key={q.id} className="border rounded p-4 space-y-2">
-                  <p className="text-xs text-gray-500 uppercase">{q.target_skill}</p>
-                  {q.existing_bullet && (
-                    <p className="text-xs text-gray-400 italic">Current: &quot;{q.existing_bullet}&quot;</p>
-                  )}
-                  <p className="text-sm font-medium">{q.question_text}</p>
-                  <textarea
-                    value={answers[q.id] || ''}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    placeholder="Type your answer here..."
-                    className="w-full border rounded px-3 py-2 h-24 text-sm"
-                    maxLength={5000}
+
+              {/* Progress dots */}
+              <div className="flex gap-2">
+                {questions.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      i < currentQuestionIndex
+                        ? 'bg-blue-600'
+                        : i === currentQuestionIndex
+                        ? 'bg-blue-400'
+                        : 'bg-gray-200'
+                    }`}
                   />
-                  <button
-                    onClick={() => handleSubmitAnswer(q.id, q.question_text, q.existing_bullet || '')}
-                    disabled={submittingAnswer === q.id}
-                    className="bg-gray-800 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    {submittingAnswer === q.id ? 'Processing...' : 'Submit answer'}
-                  </button>
+                ))}
+              </div>
 
-                  {extractedResults[q.id] && (
-                    <div className="space-y-2">
-                      <div className="bg-red-50 border border-red-200 rounded p-3 text-sm">
-                        <p className="text-xs uppercase text-red-700 mb-1">Before</p>
-                        <p>{q.existing_bullet}</p>
+              {(() => {
+                const q = questions[currentQuestionIndex]
+                return (
+                  <div key={q.id} className="bg-white border rounded-lg shadow-sm p-4 space-y-3">
+                    <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">{q.target_skill}</p>
+                    {q.existing_bullet && (
+                      <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 italic">
+                        Current: &quot;{q.existing_bullet}&quot;
                       </div>
-                      <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                        <p className="text-xs uppercase text-green-700 mb-1">After</p>
-                        <p>{extractedResults[q.id].rewritten_bullet}</p>
+                    )}
+                    <p className="text-sm font-medium text-gray-900">{q.question_text}</p>
+                    <textarea
+                      value={answers[q.id] || ''}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      placeholder="Type your answer here..."
+                      className="w-full h-28 border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-blue-600"
+                    />
+
+                    {extractedResults[q.id] ? (
+                      <div className="space-y-2">
+                        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm">
+                          <p className="text-xs uppercase text-red-700 mb-1 font-medium">Before</p>
+                          <p>{q.existing_bullet || '(new bullet)'}</p>
+                        </div>
+                        <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
+                          <p className="text-xs uppercase text-green-700 mb-1 font-medium">After</p>
+                          <p>{extractedResults[q.id].rewritten_bullet}</p>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          <span className="font-medium">Skill identified:</span> {extractedResults[q.id].skill_identified}
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            id={`approve-${q.id}`}
+                            checked={approvalChoices[q.id] || false}
+                            onChange={(e) => setApprovalChoices((prev) => ({ ...prev, [q.id]: e.target.checked }))}
+                          />
+                          <label htmlFor={`approve-${q.id}`} className="text-sm text-gray-700">
+                            Approve this rewrite
+                          </label>
+                        </div>
+                        {/* Next question or finish */}
+                        {currentQuestionIndex < questions.length - 1 ? (
+                          <button
+                            onClick={() => setCurrentQuestionIndex((i) => i + 1)}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition"
+                          >
+                            Next Question →
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleSaveValidation}
+                            disabled={savingValidation}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50 transition"
+                          >
+                            {savingValidation ? 'Saving...' : 'Save & Generate My CV →'}
+                          </button>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-500"><span className="font-medium">Skill identified:</span> {extractedResults[q.id].skill_identified}</p>
-                    </div>
-                  )}
-
-                  {extractedResults[q.id] && (
-                    <label className="flex items-center gap-2 text-sm mt-2">
-                      <input
-                        type="checkbox"
-                        checked={approvalChoices[q.id] || false}
-                        onChange={(e) => setApprovalChoices((prev) => ({ ...prev, [q.id]: e.target.checked }))}
-                      />
-                      Add this to my resume
-                    </label>
-                  )}
-                </div>
-              ))}
-
-              {Object.values(extractedResults).length > 0 && (
-                <div className="border-t pt-4">
-                  {validationSaved ? (
-                    <p className="text-green-700 text-sm font-medium">✓ Your selections have been saved.</p>
-                  ) : (
-                    <button
-                      onClick={handleSaveValidation}
-                      disabled={savingValidation}
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
-                    >
-                      {savingValidation ? 'Saving...' : 'Save my selections'}
-                    </button>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <button
+                        onClick={() => handleSubmitAnswer(q.id, q.question_text, q.existing_bullet || '')}
+                        disabled={submittingAnswer === q.id}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50 transition"
+                      >
+                        {submittingAnswer === q.id ? 'Processing...' : 'Submit Answer'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>
       )}
 
       {currentStep === 2 && (
-        <div>
+        <div className="space-y-6">
+          {generatingResume && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-gray-500">Generating your tailored CV...</p>
+            </div>
+          )}
           {validationSaved && (
             <div className="space-y-4">
               <h2 className="font-medium text-lg">Final Output</h2>
@@ -1031,23 +1079,6 @@ function ReviewPageContent() {
         </div>
       )}
 
-      <div className="flex justify-between items-center border-t pt-4 mt-8">
-        <button
-          onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
-          disabled={currentStep === 0}
-          className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          ← Back
-        </button>
-        <span className="text-xs text-gray-400">Step {currentStep + 1} of 3</span>
-        <button
-          onClick={() => setCurrentStep((s) => Math.min(2, s + 1))}
-          disabled={currentStep === 2}
-          className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Continue →
-        </button>
-      </div>
     </div>
   )
 }
