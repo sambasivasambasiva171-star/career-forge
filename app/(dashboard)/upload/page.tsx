@@ -119,11 +119,15 @@ function UploadPageContent() {
         if (insertError || !resumeRow) { setError('Failed to save resume. Please try again.'); setLoading(false); return }
         resumeId = resumeRow.id
 
-        fetch('/api/resume/parse', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }).catch(() => {})
+        try {
+          await fetch('/api/resume/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resume_id: resumeId }),
+          })
+        } catch {
+          // Non-fatal — generation will retry if parse hasn't completed
+        }
       } else {
         const { data: resumeRow, error: insertError } = await supabase
           .from('resumes')
@@ -132,11 +136,15 @@ function UploadPageContent() {
         if (insertError || !resumeRow) { setError('Failed to save resume. Please try again.'); setLoading(false); return }
         resumeId = resumeRow.id
 
-        fetch('/api/resume/parse', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }).catch(() => {})
+        try {
+          await fetch('/api/resume/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resume_id: resumeId }),
+          })
+        } catch {
+          // Non-fatal — generation will retry if parse hasn't completed
+        }
       }
 
       const { data: jdRow, error: jdError } = await supabase
@@ -265,7 +273,7 @@ function UploadPageContent() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 text-sm font-medium disabled:opacity-50 transition"
           >
-            {loading ? 'Saving...' : 'Continue to Generate CV →'}
+            {loading ? 'Uploading & processing your CV...' : 'Continue to Generate CV →'}
           </button>
         </form>
       </div>
