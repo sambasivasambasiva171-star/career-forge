@@ -71,7 +71,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4">
-      <StepProgress current={5} />
+      <StepProgress current={4} />
 
       <div className="space-y-6 pb-12">
         <div className="flex items-center justify-between">

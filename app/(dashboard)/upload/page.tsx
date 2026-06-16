@@ -8,22 +8,20 @@ import StepProgress from '@/components/StepProgress'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
 const MAX_MANUAL_LENGTH = 20000
+const MAX_JD_LENGTH = 10000
 
 export default function UploadPage() {
   const [mode, setMode] = useState<'upload' | 'manual'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [manualText, setManualText] = useState('')
-  const [targetRole, setTargetRole] = useState('')
+  const [jdText, setJdText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0]
-    if (!selected) {
-      setFile(null)
-      return
-    }
+    if (!selected) { setFile(null); return }
     if (!ALLOWED_TYPES.includes(selected.type)) {
       setError('Please upload a PDF or Word document.')
       setFile(null)
@@ -54,107 +52,64 @@ export default function UploadPage() {
       setError(`Resume text must be ${MAX_MANUAL_LENGTH} characters or fewer.`)
       return
     }
+    if (!jdText.trim()) {
+      setError('Please paste the job description.')
+      return
+    }
+    if (jdText.length > MAX_JD_LENGTH) {
+      setError(`Job description must be ${MAX_JD_LENGTH} characters or fewer.`)
+      return
+    }
 
     setLoading(true)
 
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        setError('You must be logged in.')
-        setLoading(false)
-        return
-      }
+      if (!user) { setError('You must be logged in.'); setLoading(false); return }
 
       let resumeId: string
 
       if (mode === 'upload' && file) {
         const timestamp = Date.now()
         const path = `${user.id}/${timestamp}_${file.name}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('resumes')
-          .upload(path, file)
-
-        if (uploadError) {
-          setError('Failed to upload file. Please try again.')
-          setLoading(false)
-          return
-        }
+        const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file)
+        if (uploadError) { setError('Failed to upload file. Please try again.'); setLoading(false); return }
 
         const { data: resumeRow, error: insertError } = await supabase
           .from('resumes')
-          .insert({
-            user_id: user.id,
-            source_type: 'upload',
-            raw_text: null,
-            parsed_json: { storage_path: path, original_filename: file.name },
-          })
-          .select('id')
-          .single()
-
-        if (insertError || !resumeRow) {
-          setError('Failed to save resume. Please try again.')
-          setLoading(false)
-          return
-        }
-
+          .insert({ user_id: user.id, source_type: 'upload', raw_text: null, parsed_json: { storage_path: path, original_filename: file.name } })
+          .select('id').single()
+        if (insertError || !resumeRow) { setError('Failed to save resume. Please try again.'); setLoading(false); return }
         resumeId = resumeRow.id
 
-        // Parse the resume immediately so Step 2 can show editable personal info
-        try {
-          await fetch('/api/resume/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resume_id: resumeId }),
-          })
-        } catch {
-          // Non-fatal: parsing can be retried later in the flow
-        }
+        fetch('/api/resume/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_id: resumeId }),
+        }).catch(() => {})
       } else {
         const { data: resumeRow, error: insertError } = await supabase
           .from('resumes')
-          .insert({
-            user_id: user.id,
-            source_type: 'manual',
-            raw_text: manualText,
-            parsed_json: null,
-          })
-          .select('id')
-          .single()
-
-        if (insertError || !resumeRow) {
-          setError('Failed to save resume. Please try again.')
-          setLoading(false)
-          return
-        }
-
+          .insert({ user_id: user.id, source_type: 'manual', raw_text: manualText, parsed_json: null })
+          .select('id').single()
+        if (insertError || !resumeRow) { setError('Failed to save resume. Please try again.'); setLoading(false); return }
         resumeId = resumeRow.id
 
-        try {
-          await fetch('/api/resume/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resume_id: resumeId }),
-          })
-        } catch {
-          // Non-fatal
-        }
+        fetch('/api/resume/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_id: resumeId }),
+        }).catch(() => {})
       }
 
-      if (targetRole.trim()) {
-        await supabase
-          .from('job_descriptions')
-          .upsert({ user_id: user.id }, { onConflict: 'user_id', ignoreDuplicates: true })
-          .select()
-        // Target role is carried via query param to the next step rather than persisted
-        // here, since job_descriptions rows are created per-JD in the next step.
-      }
+      const { data: jdRow, error: jdError } = await supabase
+        .from('job_descriptions')
+        .insert({ user_id: user.id, raw_text: jdText, parsed_keywords: null })
+        .select('id').single()
+      if (jdError || !jdRow) { setError('Failed to save job description. Please try again.'); setLoading(false); return }
 
-      const params = new URLSearchParams({ resume_id: resumeId })
-      if (targetRole.trim()) params.set('target_role', targetRole.trim())
-      router.push(`/job-description?${params.toString()}`)
+      router.push(`/review?resume_id=${resumeId}&jd_id=${jdRow.id}`)
     } catch {
       setError('Something went wrong. Please try again.')
       setLoading(false)
@@ -167,69 +122,73 @@ export default function UploadPage() {
 
       <div className="space-y-6 pb-12">
         <div>
-          <h1 className="text-xl font-semibold">Auto-fill from your existing CV</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Your Details</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Upload your existing CV to auto-fill the form, or fill in your details manually.
+            Upload your CV and paste the job description you&apos;re targeting — all in one step.
           </p>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
+
+          {/* Resume section */}
+          <div className="bg-white border rounded-lg p-4 shadow-sm space-y-3">
+            <h2 className="font-medium text-gray-900">Your CV / Resume</h2>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setMode('upload')}
-                className={`text-sm border rounded px-3 py-1.5 ${mode === 'upload' ? 'border-blue-600 bg-gray-50' : 'border-gray-200'}`}
+                className={`text-sm border rounded px-3 py-1.5 transition ${mode === 'upload' ? 'border-blue-600 bg-blue-50 text-blue-600 font-medium' : 'border-gray-200 text-gray-600 hover:border-blue-600'}`}
               >
                 Upload existing resume
               </button>
               <button
                 type="button"
                 onClick={() => setMode('manual')}
-                className={`text-sm border rounded px-3 py-1.5 ${mode === 'manual' ? 'border-blue-600 bg-gray-50' : 'border-gray-200'}`}
+                className={`text-sm border rounded px-3 py-1.5 transition ${mode === 'manual' ? 'border-blue-600 bg-blue-50 text-blue-600 font-medium' : 'border-gray-200 text-gray-600 hover:border-blue-600'}`}
               >
                 Type it manually
               </button>
             </div>
 
             {mode === 'upload' ? (
-              <div className="border-2 border-dashed rounded p-6 text-center">
+              <div className="border-2 border-dashed rounded-lg p-6 text-center bg-gray-50">
+                <p className="text-sm text-gray-500 mb-2">PDF or Word, max 5MB</p>
                 <input type="file" accept=".pdf,.docx" onChange={handleFileChange} />
-                <p className="text-xs text-gray-500 mt-2">PDF or Word, max 5MB</p>
-                {file && <p className="text-sm mt-2">Selected: {file.name}</p>}
+                {file && <p className="text-sm mt-2 text-gray-700">Selected: <span className="font-medium">{file.name}</span></p>}
               </div>
             ) : (
               <textarea
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
-                placeholder="Paste or type your work experience..."
-                className="w-full h-48 border rounded p-3 text-sm"
+                placeholder="Paste or type your work experience, education, and skills..."
+                className="w-full h-40 border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-blue-600"
                 maxLength={MAX_MANUAL_LENGTH}
               />
             )}
           </div>
 
-          <div className="border rounded p-4 space-y-2">
-            <h2 className="font-medium">Target Role *</h2>
-            <input
-              value={targetRole}
-              onChange={(e) => setTargetRole(e.target.value)}
-              placeholder="e.g. Software Engineer, Data Analyst, Marketing Manager"
-              className="w-full border rounded px-3 py-2 text-sm"
+          {/* JD section */}
+          <div className="bg-white border rounded-lg p-4 shadow-sm space-y-3">
+            <h2 className="font-medium text-gray-900">Job Description</h2>
+            <p className="text-xs text-gray-500">Paste the exact job description you&apos;re applying for. The AI will tailor your CV to match it.</p>
+            <textarea
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              placeholder="Paste the full job description here..."
+              className="w-full h-48 border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-blue-600"
+              maxLength={MAX_JD_LENGTH}
             />
-            <p className="text-xs text-gray-500">
-              The AI will tailor the CV to this specific role and extract matching keywords from your JD.
-            </p>
+            <p className="text-xs text-gray-400 text-right">{jdText.length}/{MAX_JD_LENGTH} characters</p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-3 text-sm font-medium disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 text-sm font-medium disabled:opacity-50 transition"
           >
-            {loading ? 'Processing...' : 'Continue to Job Description →'}
+            {loading ? 'Saving...' : 'Continue to Generate CV →'}
           </button>
         </form>
       </div>

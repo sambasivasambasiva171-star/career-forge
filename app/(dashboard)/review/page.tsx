@@ -524,7 +524,7 @@ function ReviewPageContent() {
 
   return (
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
-      <StepProgress current={4} />
+      <StepProgress current={3} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {currentStep === 0 && (

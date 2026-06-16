@@ -1,4 +1,4 @@
-const STEPS = ['Profile', 'Details', 'Job Description', 'Generate CV', 'Dashboard']
+const STEPS = ['Profile', 'Details & JD', 'Generate CV', 'Dashboard']
 
 export default function StepProgress({ current }: { current: number }) {
   return (
