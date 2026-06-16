@@ -81,6 +81,12 @@ function ReviewPageContent() {
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
+    if (resumeId && jdId) {
+      handleAnalyzeGap()
+    }
+  }, [resumeId, jdId])
+
+  useEffect(() => {
     async function loadPreflightResponses() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -529,64 +535,143 @@ function ReviewPageContent() {
 
       {currentStep === 0 && (
         <div className="space-y-6">
-          <button
-            onClick={handleAnalyzeGap}
-            disabled={analyzing}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
-          >
-            {analyzing ? 'Analyzing...' : 'Analyze skill gaps vs JD'}
-          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Skill Gap Analysis</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Analysing your CV against the job description...
+            </p>
+          </div>
 
-          {gapAnalysis && (
-            <div className="space-y-6">
-              <section>
-                <h2 className="font-medium text-lg mb-2 text-green-700">Matched Skills ({gapAnalysis.matched_skills.length})</h2>
-                <div className="space-y-2">
-                  {gapAnalysis.matched_skills.map((s, i) => (
-                    <div key={i} className="border rounded p-3 text-sm bg-green-50">
-                      <p className="font-medium">{s.skill}</p>
-                      <p className="text-gray-600 text-xs">{s.evidence}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h2 className="font-medium text-lg mb-2 text-amber-700">Partial Matches ({gapAnalysis.partial_skills.length})</h2>
-                <div className="space-y-2">
-                  {gapAnalysis.partial_skills.map((s, i) => (
-                    <div key={i} className="border rounded p-3 text-sm bg-amber-50">
-                      <p className="font-medium">{s.skill}</p>
-                      <p className="text-gray-600 text-xs">Resume shows: {s.resume_evidence}</p>
-                      <p className="text-gray-600 text-xs">JD wants: {s.jd_requirement}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h2 className="font-medium text-lg mb-2 text-red-700">Missing Skills ({gapAnalysis.missing_skills.length})</h2>
-                <div className="space-y-2">
-                  {gapAnalysis.missing_skills.map((s, i) => (
-                    <div key={i} className="border rounded p-3 text-sm bg-red-50">
-                      <p className="font-medium">{s.skill}</p>
-                      <p className="text-gray-600 text-xs">{s.jd_context}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+          {analyzing && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-gray-500">Analysing skill gaps...</p>
             </div>
           )}
 
-          {gapAnalysis && (
-            <button
-              onClick={handleGenerateQuestions}
-              disabled={generatingQuestions}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
-            >
-              {generatingQuestions ? 'Generating questions...' : 'Generate interactive questions'}
-            </button>
-          )}
+          {gapAnalysis && !analyzing && (() => {
+            const matched = gapAnalysis.matched_skills.length
+            const partial = gapAnalysis.partial_skills.length
+            const missing = gapAnalysis.missing_skills.length
+            const total = matched + partial + missing || 1
+            const matchedPct = Math.round((matched / total) * 100)
+            const partialPct = Math.round((partial / total) * 100)
+            const missingPct = Math.round((missing / total) * 100)
+
+            const radius = 54
+            const circumference = 2 * Math.PI * radius
+            const matchedDash = (matchedPct / 100) * circumference
+            const partialDash = (partialPct / 100) * circumference
+            const missingDash = (missingPct / 100) * circumference
+            const matchedOffset = 0
+            const partialOffset = -matchedDash
+            const missingOffset = -(matchedDash + partialDash)
+
+            return (
+              <div className="space-y-6">
+                {/* Donut chart + legend */}
+                <div className="bg-white border rounded-lg shadow-sm p-6 flex flex-col sm:flex-row items-center gap-6">
+                  <div className="relative shrink-0">
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                      <circle cx="70" cy="70" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="16" />
+                      {matched > 0 && (
+                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#22c55e" strokeWidth="16"
+                          strokeDasharray={`${matchedDash} ${circumference - matchedDash}`}
+                          strokeDashoffset={matchedOffset}
+                          transform="rotate(-90 70 70)" />
+                      )}
+                      {partial > 0 && (
+                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#f59e0b" strokeWidth="16"
+                          strokeDasharray={`${partialDash} ${circumference - partialDash}`}
+                          strokeDashoffset={partialOffset}
+                          transform="rotate(-90 70 70)" />
+                      )}
+                      {missing > 0 && (
+                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#ef4444" strokeWidth="16"
+                          strokeDasharray={`${missingDash} ${circumference - missingDash}`}
+                          strokeDashoffset={missingOffset}
+                          transform="rotate(-90 70 70)" />
+                      )}
+                      <text x="70" y="65" textAnchor="middle" className="text-2xl font-bold" fill="#111827" fontSize="22" fontWeight="bold">{matchedPct}%</text>
+                      <text x="70" y="82" textAnchor="middle" fill="#6b7280" fontSize="11">match</text>
+                    </svg>
+                  </div>
+
+                  <div className="flex flex-col gap-3 w-full">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" />Matched</span>
+                        <span className="font-medium text-green-600">{matched} skills ({matchedPct}%)</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${matchedPct}%` }} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />Partial</span>
+                        <span className="font-medium text-amber-600">{partial} skills ({partialPct}%)</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="bg-amber-400 h-2 rounded-full transition-all" style={{ width: `${partialPct}%` }} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" />Missing</span>
+                        <span className="font-medium text-red-600">{missing} skills ({missingPct}%)</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="bg-red-500 h-2 rounded-full transition-all" style={{ width: `${missingPct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skill detail cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-green-800 mb-2">✓ Matched Skills</h3>
+                    <ul className="space-y-1">
+                      {gapAnalysis.matched_skills.map((s, i) => (
+                        <li key={i} className="text-xs text-green-700 flex items-start gap-1">
+                          <span className="mt-0.5 shrink-0">•</span>{s.skill}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-amber-800 mb-2">~ Partial Matches</h3>
+                    <ul className="space-y-1">
+                      {gapAnalysis.partial_skills.map((s, i) => (
+                        <li key={i} className="text-xs text-amber-700 flex items-start gap-1">
+                          <span className="mt-0.5 shrink-0">•</span>{s.skill}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-red-800 mb-2">✗ Missing Skills</h3>
+                    <ul className="space-y-1">
+                      {gapAnalysis.missing_skills.map((s, i) => (
+                        <li key={i} className="text-xs text-red-700 flex items-start gap-1">
+                          <span className="mt-0.5 shrink-0">•</span>{s.skill}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGenerateQuestions}
+                  disabled={generatingQuestions}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 text-sm font-medium disabled:opacity-50 transition"
+                >
+                  {generatingQuestions ? 'Generating questions...' : 'Continue — Generate Interview Questions →'}
+                </button>
+              </div>
+            )
+          })()}
         </div>
       )}
 
