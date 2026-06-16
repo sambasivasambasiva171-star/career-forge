@@ -17,7 +17,7 @@ CRITICAL RULES ON PROJECTS:
 - Never invent a "technologies" list for non-technical work.
 
 LANGUAGE VARIANT RULES:
-- If language_variant is "uk_english": use British spelling throughout (e.g. "optimised" not "optimized", "organisation" not "organization", "specialised" not "specialized", "programme" not "program", "centre" not "center", "colour" not "color", "analyse" not "analyze"). Apply this to every field including summary, responsibilities, skills, and project descriptions.
+- If language_variant is "uk_english": use British spelling throughout (e.g. "optimised" not "optimized", "organisation" not "organization", "specialised" not "specialized", "programme" not "program", "centre" not "center", "colour" not "color", "analyse" not "analyze"). Apply this to every field including summary, responsibilities, skills, and project descriptions. This applies to ALL text in your output, including rewritten versions of existing resume bullets — convert any US spellings found in the original to UK equivalents.
 - If language_variant is "us_english": use American spelling throughout (e.g. "optimized", "organization", "specialized", "program", "center", "color", "analyze").
 
 ADDITIONAL CONFIRMED FACTS:

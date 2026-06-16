@@ -96,7 +96,6 @@ export async function POST(request: NextRequest) {
       maxTokens: 2048,
     })
 
-    console.log('questionnaire raw AI response:', aiResponse)
     result = parseJsonResponse<QuestionnaireResult>(aiResponse)
   } catch (err) {
     console.error('Questionnaire generation AI error:', err)
