@@ -19,8 +19,10 @@ function UploadPageContent() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const existingResumeId = searchParams.get('resume_id')
-  const existingJdId = searchParams.get('jd_id')
+  const existingResumeId = searchParams.get('resume_id') ||
+    (typeof window !== 'undefined' ? sessionStorage.getItem('cf_resume_id') : null)
+  const existingJdId = searchParams.get('jd_id') ||
+    (typeof window !== 'undefined' ? sessionStorage.getItem('cf_jd_id') : null)
   const [existingFilename, setExistingFilename] = useState<string | null>(null)
   const [existingJdPreview, setExistingJdPreview] = useState<string | null>(null)
   const [loadingExisting, setLoadingExisting] = useState(false)

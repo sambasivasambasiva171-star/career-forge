@@ -78,6 +78,13 @@ function ReviewPageContent() {
   const resumeId = searchParams.get('resume_id')
   const jdId = searchParams.get('jd_id')
 
+  useEffect(() => {
+    if (resumeId && jdId) {
+      sessionStorage.setItem('cf_resume_id', resumeId)
+      sessionStorage.setItem('cf_jd_id', jdId)
+    }
+  }, [resumeId, jdId])
+
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
   const [gapAnalysis, setGapAnalysis] = useState<{
     matched_skills: Array<{ skill: string; evidence: string }>
@@ -300,7 +307,12 @@ function ReviewPageContent() {
       const data = await res.json()
 
       if (!res.ok) {
+        if (data.code === 'RESUME_NOT_PARSED') {
+          setTimeout(() => handleGenerateResume(), 3000)
+          return
+        }
         setError(data.error || 'Something went wrong.')
+        setGeneratingResume(false)
         return
       }
 
@@ -719,9 +731,9 @@ function ReviewPageContent() {
                 <button
                   type="button"
                   onClick={async () => {
-                    setCurrentStep(2)
                     setValidationSaved(true)
-                    setTimeout(() => handleGenerateResume(), 100)
+                    setCurrentStep(2)
+                    setTimeout(() => handleGenerateResume(), 500)
                   }}
                   className="text-sm text-gray-500 hover:text-blue-600 underline"
                 >
@@ -824,6 +836,16 @@ function ReviewPageContent() {
 
       {currentStep === 2 && (
         <div className="space-y-6">
+          <button
+            onClick={() => {
+              setCurrentStep(1)
+              setValidationSaved(false)
+              setFinalResume(null)
+            }}
+            className="text-sm text-gray-500 hover:text-blue-600"
+          >
+            ← Back to Questions
+          </button>
           {generatingResume && (
             <div className="flex flex-col items-center justify-center py-16 space-y-4">
               <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />

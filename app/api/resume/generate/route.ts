@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (!resume.parsed_json) {
-    return NextResponse.json({ error: 'Resume has not been parsed yet.' }, { status: 400 })
+    return NextResponse.json({
+      error: 'Resume is still being processed. Please wait a moment and try again.',
+      code: 'RESUME_NOT_PARSED'
+    }, { status: 422 })
   }
 
   const { data: jd, error: jdError } = await supabase

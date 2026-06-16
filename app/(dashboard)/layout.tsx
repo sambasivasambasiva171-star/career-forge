@@ -8,8 +8,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Link href="/onboarding" className="font-semibold text-blue-600">Career Forge</Link>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/dashboard" className="text-gray-600 hover:text-blue-600">Dashboard</Link>
-          <Link href="/upload" className="text-gray-600 hover:text-blue-600">Upload</Link>
-          <Link href="/review" className="text-gray-600 hover:text-blue-600">Review</Link>
           <Link href="/account" className="text-gray-600 hover:text-blue-600">Account</Link>
           <SignOutButton />
         </nav>
