@@ -86,9 +86,26 @@ function ReviewPageContent() {
   } | null>(null)
 
   useEffect(() => {
-    if (resumeId && jdId && !gapAnalysis) {
-      handleAnalyzeGap()
+    if (!resumeId || !jdId || gapAnalysis) return
+
+    async function loadOrAnalyze() {
+      const supabase = createClient()
+      const { data: jd } = await supabase
+        .from('job_descriptions')
+        .select('parsed_keywords')
+        .eq('id', jdId)
+        .single()
+
+      if (jd?.parsed_keywords &&
+          (jd.parsed_keywords as Record<string, unknown>).matched_skills &&
+          (jd.parsed_keywords as Record<string, unknown>).missing_skills) {
+        setGapAnalysis(jd.parsed_keywords as typeof gapAnalysis)
+      } else {
+        handleAnalyzeGap()
+      }
     }
+
+    loadOrAnalyze()
   }, [resumeId, jdId, gapAnalysis])
 
   useEffect(() => {
