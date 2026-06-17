@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { resume_id, jd_id, preflight_facts } = parsed.data
+  const { resume_id, jd_id, preflight_facts, questionnaire_skipped } = parsed.data
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: user.id,
       doc_type: 'resume',
-      content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant },
+      content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant, questionnaire_skipped },
     })
     .select('id')
     .single()

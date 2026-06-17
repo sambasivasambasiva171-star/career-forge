@@ -57,6 +57,7 @@ export const generateResumeWithFactsSchema = z.object({
   resume_id: z.string().uuid(),
   jd_id: z.string().uuid(),
   preflight_facts: z.array(z.string()).optional().default([]),
+  questionnaire_skipped: z.boolean().optional().default(false),
 })
 
 export const renderResumePdfSchema = z.object({

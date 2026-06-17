@@ -93,6 +93,10 @@ function ReviewPageContent() {
     partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
   } | null>(null)
 
+  const [personaType, setPersonaType] = useState<string | null>(null)
+  const [showSkipWarning, setShowSkipWarning] = useState(false)
+  const [questionnaireSkipped, setQuestionnaireSkipped] = useState(false)
+
   useEffect(() => {
     if (!resumeId || !jdId || gapAnalysis) return
 
@@ -124,12 +128,15 @@ function ReviewPageContent() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('preflight_responses')
+        .select('preflight_responses, persona_type')
         .eq('id', user.id)
         .single()
 
       if (profile?.preflight_responses) {
         setPreflightResponses(profile.preflight_responses as Record<string, boolean>)
+      }
+      if (profile?.persona_type) {
+        setPersonaType(profile.persona_type)
       }
     }
     loadPreflightResponses()
@@ -302,7 +309,7 @@ function ReviewPageContent() {
       const res = await fetch('/api/resume/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId, preflight_facts: preflightFacts }),
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId, preflight_facts: preflightFacts, questionnaire_skipped: questionnaireSkipped }),
       })
 
       const data = await res.json()
@@ -589,6 +596,49 @@ function ReviewPageContent() {
       <StepProgress current={3} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
+      {showSkipWarning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-amber-800">
+              {personaType === 'fresher'
+                ? '⚠ We found skill gaps vs. the JD. Answer 3 quick scenario questions to unlock missing competencies.'
+                : '⚠ Your CV may lack quantified impact metrics. Answer 3 quick questions to unlock stronger bullet points.'}
+            </p>
+            <button
+              onClick={() => setShowSkipWarning(false)}
+              className="text-amber-600 hover:text-amber-800 text-xs leading-none shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                setShowSkipWarning(false)
+                if (currentStep === 0) {
+                  await handleGenerateQuestions()
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded px-3 py-1.5 text-sm font-medium"
+            >
+              {personaType === 'fresher' ? 'Discover My Skills' : 'Answer Now'}
+            </button>
+            <button
+              onClick={() => {
+                setQuestionnaireSkipped(true)
+                setShowSkipWarning(false)
+                setValidationSaved(true)
+                setCurrentStep(2)
+                setTimeout(() => handleGenerateResume(), 500)
+              }}
+              className="text-sm text-amber-700 hover:text-amber-900 underline px-3 py-1.5"
+            >
+              Skip & Generate Anyway
+            </button>
+          </div>
+        </div>
+      )}
+
       {currentStep === 0 && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -600,11 +650,7 @@ function ReviewPageContent() {
             </button>
             {gapAnalysis && (
               <button
-                onClick={async () => {
-                  setValidationSaved(true)
-                  setCurrentStep(2)
-                  setTimeout(() => handleGenerateResume(), 500)
-                }}
+                onClick={() => setShowSkipWarning(true)}
                 className="text-sm bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 font-medium"
               >
                 Skip to Generate CV →
@@ -767,11 +813,7 @@ function ReviewPageContent() {
                 </h2>
                 <button
                   type="button"
-                  onClick={async () => {
-                    setValidationSaved(true)
-                    setCurrentStep(2)
-                    setTimeout(() => handleGenerateResume(), 500)
-                  }}
+                  onClick={() => setShowSkipWarning(true)}
                   className="text-sm text-gray-500 hover:text-blue-600 underline"
                 >
                   Skip and generate CV →
