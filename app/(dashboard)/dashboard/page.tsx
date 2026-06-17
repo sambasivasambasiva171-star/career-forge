@@ -14,9 +14,16 @@ interface DocGroup {
   resume_id: string | null
 }
 
+interface LegacyDoc {
+  id: string
+  doc_type: string
+  created_at: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [groups, setGroups] = useState<DocGroup[]>([])
+  const [legacyDocs, setLegacyDocs] = useState<LegacyDoc[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -30,7 +37,7 @@ export default function DashboardPage() {
 
       const { data: docs } = await supabase
         .from('generated_documents')
-        .select('id, doc_type, jd_id, resume_id, created_at')
+        .select('id, doc_type, jd_id, resume_id, created_at, is_legacy')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -41,8 +48,11 @@ export default function DashboardPage() {
 
       const jdMap = new Map((jds || []).map((jd) => [jd.id, jd.raw_text as string]))
 
+      const scopedDocs = (docs || []).filter((d) => !d.is_legacy)
+      const legacy = (docs || []).filter((d) => d.is_legacy)
+
       const groupMap = new Map<string, DocGroup>()
-      for (const doc of docs || []) {
+      for (const doc of scopedDocs) {
         const key = doc.jd_id as string
         if (!groupMap.has(key)) {
           groupMap.set(key, {
@@ -60,6 +70,7 @@ export default function DashboardPage() {
       }
 
       setGroups(Array.from(groupMap.values()))
+      setLegacyDocs(legacy.map((d) => ({ id: d.id as string, doc_type: d.doc_type as string, created_at: d.created_at as string })))
       setLoading(false)
     }
     load()
@@ -137,6 +148,38 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {legacyDocs.length > 0 && (
+          <div className="mt-8 border-t pt-6">
+            <h3 className="text-sm font-medium text-gray-400 mb-3">
+              Earlier generations
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              These documents were generated before per-application tracking
+              was enabled. They cannot be grouped by job application.
+            </p>
+            <div className="space-y-2">
+              {legacyDocs.map((doc) => (
+                <div key={doc.id} className="border rounded p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400">
+                      {new Date(doc.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {doc.doc_type === 'resume' ? 'Resume' : 'Cover Letter'}
+                    </p>
+                  </div>
+                  <a
+                    href={doc.doc_type === 'resume' ? `/api/resume/pdf?document_id=${doc.id}` : `/api/cover-letter/pdf?document_id=${doc.id}`}
+                    className="text-sm border rounded px-3 py-1.5 hover:border-blue-600 whitespace-nowrap"
+                  >
+                    Download PDF
+                  </a>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
