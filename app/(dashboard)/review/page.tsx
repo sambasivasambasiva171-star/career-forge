@@ -476,7 +476,7 @@ function ReviewPageContent() {
   }
 
   async function handleGenerateCoverLetter() {
-    if (!cvDocumentId || !jdId) {
+    if (!cvDocumentId || !resumeId || !jdId) {
       setError('Please generate your CV before generating a cover letter.')
       return
     }
@@ -488,7 +488,7 @@ function ReviewPageContent() {
       const res = await fetch('/api/cover-letter/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume_id: cvDocumentId, jd_id: jdId }),
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId, cv_document_id: cvDocumentId }),
       })
 
       const data = await res.json()

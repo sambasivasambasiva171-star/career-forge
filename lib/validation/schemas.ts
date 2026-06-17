@@ -43,6 +43,7 @@ export const validateSkillsSchema = z.object({
 export const generateResumeSchema = z.object({
   resume_id: z.string().uuid(),
   jd_id: z.string().uuid(),
+  cv_document_id: z.string().uuid(),
 })
 
 export const generateNetworkingSchema = z.object({

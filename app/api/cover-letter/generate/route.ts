@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { resume_id, jd_id } = parsed.data
+  const { resume_id, jd_id, cv_document_id } = parsed.data
 
   const { data: jd, error: jdError } = await supabase
     .from('job_descriptions')
@@ -45,17 +45,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: latestResume, error: docError } = await supabase
+  const { data: resumeDoc, error: docError } = await supabase
     .from('generated_documents')
     .select('id, content_json')
+    .eq('id', cv_document_id)
     .eq('user_id', user.id)
     .eq('doc_type', 'resume')
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
 
-  if (docError || !latestResume) {
-    return NextResponse.json({ error: 'No generated resume found. Please generate your resume first.' }, { status: 400 })
+  if (docError || !resumeDoc) {
+    return NextResponse.json({ error: 'Source resume not found' }, { status: 404 })
   }
 
   const { data: profile } = await supabase
@@ -70,7 +69,7 @@ export async function POST(request: NextRequest) {
   try {
     const aiResponse = await getCompletion({
       systemPrompt: COVER_LETTER_SYSTEM_PROMPT,
-      userPrompt: buildCoverLetterUserPrompt(latestResume.content_json, jd.raw_text, languageVariant),
+      userPrompt: buildCoverLetterUserPrompt(resumeDoc.content_json, jd.raw_text, languageVariant),
       temperature: 0.4,
       maxTokens: 1024,
     })
