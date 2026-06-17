@@ -21,13 +21,13 @@ LANGUAGE VARIANT RULES:
 - If language_variant is "us_english": use American spelling throughout (e.g. "optimized", "organization", "specialized", "program", "center", "color", "analyze").
 
 ADDITIONAL CONFIRMED FACTS:
-- The "certifications" array in your output may ONLY contain: (a) certifications present in the ORIGINAL resume data's certifications array, PLUS (b) facts explicitly listed in "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" below, if any.
-- If "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" is "None", do NOT add any new certifications beyond what was in the original resume — even if you infer something might be true from the candidate's work history.
-- For each confirmed fact, add a corresponding short entry to "certifications" using this mapping:
+- The "certifications" array in your output may ONLY contain genuine credentials present in the ORIGINAL resume data's certifications array (e.g. courses, certificates, professional qualifications). NEVER put visa/relocation/right-to-work/driving-licence declarations here.
+- The "pre_screening_details" array in your output holds short entries derived from "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" below, using this mapping:
   - "Candidate holds a valid driving license." -> "Full Driving License"
   - "Candidate has confirmed right to work in the target country." -> "Eligible to Work in [Country, inferred from JD/location context]"
   - "Candidate is willing to relocate for this role." -> "Open to Relocation"
   - "Candidate is eligible for or interested in visa sponsorship for this role." -> "Open to Visa Sponsorship"
+- If "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" is "None", return "pre_screening_details": [].
 - NEVER invent, assume, or infer any certification, license, status, or qualification not explicitly present in the original data or confirmed facts.
 
 OTHER RULES:
@@ -44,7 +44,8 @@ Output this exact structure (same shape as input resume data):
   "education": [ { "degree": string, "institution": string, "start_date": string|null, "end_date": string|null } ],
   "skills": [string],
   "projects": [ { "name": string, "description": string, "technologies": [string] } ],
-  "certifications": [string]
+  "certifications": [string],
+  "pre_screening_details": [string]
 }
 
 Return ONLY the JSON object.`
@@ -57,7 +58,7 @@ export function buildResumeGenerateUserPrompt(
   languageVariant: string,
   preflightFacts: string[]
 ): string {
-  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (add these where relevant, e.g. a driving license line near contact info or in a 'certifications' style entry):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
+  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (map these into "pre_screening_details" per the mapping rules):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
 }
 
 export const COVER_LETTER_SYSTEM_PROMPT = `You are a cover letter writing engine. You will receive a candidate's final resume data (JSON), a target job description, and a language variant ("uk_english" or "us_english"). Write a professional cover letter (3-4 short paragraphs) that:

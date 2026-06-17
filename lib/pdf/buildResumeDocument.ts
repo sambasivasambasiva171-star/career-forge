@@ -8,6 +8,7 @@ export interface EditableResumeData {
   skills: string[]
   projects: Array<{ name: string; description: string; technologies: string[] }>
   certifications: string[]
+  pre_screening_details: string[]
   document_title?: string
 }
 

@@ -73,6 +73,7 @@ interface ResumeData {
   skills: string[]
   projects: Array<{ name: string; description: string; technologies: string[] }>
   certifications: string[]
+  pre_screening_details: string[]
   document_title?: string
 }
 
@@ -153,6 +154,17 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
             <Text style={styles.sectionTitle}>Certifications</Text>
             {data.certifications.map((cert, i) => (
               <Text key={i} style={styles.bullet}>• {cert}</Text>
+            ))}
+          </>
+        )}
+
+        {(data.pre_screening_details || []).length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>
+              {data.certifications.length > 0 ? 'Pre-Screening Details' : 'Additional Information'}
+            </Text>
+            {data.pre_screening_details.map((detail, i) => (
+              <Text key={i} style={styles.bullet}>• {detail}</Text>
             ))}
           </>
         )}

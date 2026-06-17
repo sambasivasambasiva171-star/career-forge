@@ -36,6 +36,7 @@ interface EditableResume {
     technologies: string[]
   }>
   certifications: string[]
+  pre_screening_details: string[]
   document_title?: string
   language_variant?: string
 }
@@ -321,7 +322,8 @@ function ReviewPageContent() {
         return
       }
 
-      setFinalResume(data.resume as EditableResume)
+      const resume = data.resume as EditableResume
+      setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -502,6 +504,22 @@ function ReviewPageContent() {
 
   function addCertification() {
     setFinalResume((prev) => prev ? { ...prev, certifications: [...prev.certifications, ''] } : prev)
+  }
+
+  function updatePreScreeningDetail(index: number, value: string) {
+    setFinalResume((prev) => {
+      if (!prev) return prev
+      const pre_screening_details = prev.pre_screening_details.map((d, i) => i === index ? value : d)
+      return { ...prev, pre_screening_details }
+    })
+  }
+
+  function removePreScreeningDetail(index: number) {
+    setFinalResume((prev) => prev ? { ...prev, pre_screening_details: prev.pre_screening_details.filter((_, i) => i !== index) } : prev)
+  }
+
+  function addPreScreeningDetail() {
+    setFinalResume((prev) => prev ? { ...prev, pre_screening_details: [...prev.pre_screening_details, ''] } : prev)
   }
 
   async function handleAnalyzeGap() {
@@ -1032,8 +1050,8 @@ function ReviewPageContent() {
                     </div>
                   </section>
 
-                  {/* Certifications */}
-                  {(finalResume.certifications.length > 0 || true) && (
+                  {/* Certifications — only shown when genuine credentials exist */}
+                  {finalResume.certifications.length > 0 && (
                     <section>
                       <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Certifications</h4>
                       <div className="space-y-1">
@@ -1077,6 +1095,39 @@ function ReviewPageContent() {
                       ))}
                     </div>
                   </section>
+
+                  {/* Pre-screening / additional info — renamed depending on whether genuine certifications also exist */}
+                  {finalResume.pre_screening_details.length > 0 && (
+                    <section>
+                      <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">
+                        {finalResume.certifications.length > 0 ? 'Pre-Screening Details' : 'Additional Information'}
+                      </h4>
+                      <div className="space-y-1">
+                        {finalResume.pre_screening_details.map((detail, i) => (
+                          <div key={i} className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={detail}
+                              onChange={(e) => updatePreScreeningDetail(i, e.target.value)}
+                              className="flex-1 border rounded px-2 py-1 text-sm"
+                            />
+                            <button
+                              onClick={() => removePreScreeningDetail(i)}
+                              className="text-red-500 text-xs px-1 hover:text-red-700"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={addPreScreeningDetail}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          + Add detail
+                        </button>
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
 
