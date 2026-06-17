@@ -10,6 +10,29 @@ const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-office
 const MAX_MANUAL_LENGTH = 20000
 const MAX_JD_LENGTH = 10000
 
+const DEFAULT_PARSE_ERROR = "We couldn't read your PDF reliably. Please try manual entry instead."
+
+function getFriendlyParseError(serverError: string): string {
+  if (!serverError) return DEFAULT_PARSE_ERROR
+
+  const lower = serverError.toLowerCase()
+
+  if (lower.includes('corrupted') || lower.includes('encrypted') ||
+      lower.includes('image-based')) {
+    return "We couldn't read your PDF — it may be image-based, scanned, or password-protected. Please try manual entry instead."
+  }
+
+  if (lower.includes('scanned') || lower.includes('readable text')) {
+    return "We couldn't read your PDF — it appears to be a scanned document. Please try manual entry instead."
+  }
+
+  if (lower.includes('mobile') || lower.includes('incomplete')) {
+    return "We couldn't read your PDF reliably — this is common with mobile uploads. Please try manual entry instead."
+  }
+
+  return DEFAULT_PARSE_ERROR
+}
+
 function UploadPageContent() {
   const [mode, setMode] = useState<'upload' | 'manual'>('upload')
   const [file, setFile] = useState<File | null>(null)
@@ -26,6 +49,12 @@ function UploadPageContent() {
   const [existingFilename, setExistingFilename] = useState<string | null>(null)
   const [existingJdPreview, setExistingJdPreview] = useState<string | null>(null)
   const [loadingExisting, setLoadingExisting] = useState(false)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+  }, [])
 
   useEffect(() => {
     if (!existingResumeId || !existingJdId) return
@@ -120,11 +149,17 @@ function UploadPageContent() {
         resumeId = resumeRow.id
 
         try {
-          await fetch('/api/resume/parse', {
+          const parseRes = await fetch('/api/resume/parse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ resume_id: resumeId }),
           })
+          if (parseRes.status === 422) {
+            const parseData = await parseRes.json().catch(() => null)
+            setParseError(getFriendlyParseError(parseData?.error ?? ''))
+            setLoading(false)
+            return
+          }
         } catch {
           // Non-fatal — generation will retry if parse hasn't completed
         }
@@ -180,6 +215,19 @@ function UploadPageContent() {
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {parseError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+            <p className="text-sm text-red-800">{parseError}</p>
+            <button
+              type="button"
+              onClick={() => { setMode('manual'); setParseError(null) }}
+              className="bg-red-600 hover:bg-red-700 text-white rounded px-3 py-1.5 text-sm font-medium"
+            >
+              Switch to Manual Entry
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -238,10 +286,17 @@ function UploadPageContent() {
             </div>
 
             {mode === 'upload' ? (
-              <div className="border-2 border-dashed rounded-lg p-6 text-center bg-gray-50">
-                <p className="text-sm text-gray-500 mb-2">PDF or Word, max 5MB</p>
-                <input type="file" accept=".pdf,.docx" onChange={handleFileChange} />
-                {file && <p className="text-sm mt-2 text-gray-700">Selected: <span className="font-medium">{file.name}</span></p>}
+              <div className="space-y-3">
+                {isMobile && (
+                  <p className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs rounded-lg p-3">
+                    Tip: PDFs uploaded from mobile may not parse correctly. For best results, use manual entry or upload from a desktop.
+                  </p>
+                )}
+                <div className="border-2 border-dashed rounded-lg p-6 text-center bg-gray-50">
+                  <p className="text-sm text-gray-500 mb-2">PDF or Word, max 5MB</p>
+                  <input type="file" accept=".pdf,.docx" onChange={handleFileChange} />
+                  {file && <p className="text-sm mt-2 text-gray-700">Selected: <span className="font-medium">{file.name}</span></p>}
+                </div>
               </div>
             ) : (
               <textarea
