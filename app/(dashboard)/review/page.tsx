@@ -203,6 +203,7 @@ function ReviewPageContent() {
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
   const [currentStep, setCurrentStep] = useState(0)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [globalStep, setGlobalStep] = useState(3)
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -400,6 +401,7 @@ function ReviewPageContent() {
 
       const resume = data.resume as EditableResume
       setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
+      setGlobalStep(4)
 
       const omitted = currentOriginalWorkExperience.filter(
         (orig) => !resume.work_experience.some((kept) => kept.title === orig.title && kept.company === orig.company)
@@ -755,7 +757,7 @@ function ReviewPageContent() {
 
   return (
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
-      <StepProgress current={3} />
+      <StepProgress current={globalStep} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {missingDateRoles && missingDateRoles.length > 0 && missingDateModalMode === 'warning' && (
