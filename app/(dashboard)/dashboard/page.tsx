@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
+import { PreflightPanel } from '@/components/PreflightPanel'
 
 interface DocGroup {
   jd_id: string
   jd_snippet: string
+  jd_text: string
   created_at: string
   resume_doc_id: string | null
   cover_letter_doc_id: string | null
   resume_id: string | null
+  pre_screening_details: string[]
 }
 
 interface LegacyDoc {
@@ -24,6 +27,8 @@ export default function DashboardPage() {
   const router = useRouter()
   const [groups, setGroups] = useState<DocGroup[]>([])
   const [legacyDocs, setLegacyDocs] = useState<LegacyDoc[]>([])
+  const [jobMarket, setJobMarket] = useState<string | null>(null)
+  const [location, setLocation] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -35,9 +40,18 @@ export default function DashboardPage() {
         return
       }
 
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('job_market, location')
+        .eq('id', user.id)
+        .single()
+
+      setJobMarket(profile?.job_market ?? null)
+      setLocation(profile?.location ?? null)
+
       const { data: docs } = await supabase
         .from('generated_documents')
-        .select('id, doc_type, jd_id, resume_id, created_at, is_legacy')
+        .select('id, doc_type, jd_id, resume_id, created_at, is_legacy, content_json')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -58,14 +72,19 @@ export default function DashboardPage() {
           groupMap.set(key, {
             jd_id: key,
             jd_snippet: (jdMap.get(key) || '').slice(0, 120),
+            jd_text: jdMap.get(key) || '',
             created_at: doc.created_at as string,
             resume_doc_id: null,
             cover_letter_doc_id: null,
             resume_id: doc.resume_id as string | null,
+            pre_screening_details: [],
           })
         }
         const group = groupMap.get(key)!
-        if (doc.doc_type === 'resume') group.resume_doc_id = doc.id as string
+        if (doc.doc_type === 'resume') {
+          group.resume_doc_id = doc.id as string
+          group.pre_screening_details = (doc.content_json as { pre_screening_details?: string[] } | null)?.pre_screening_details || []
+        }
         if (doc.doc_type === 'cover_letter') group.cover_letter_doc_id = doc.id as string
       }
 
@@ -146,6 +165,12 @@ export default function DashboardPage() {
                     </button>
                   )}
                 </div>
+                <PreflightPanel
+                  jobMarket={jobMarket}
+                  location={location}
+                  preScreeningDetails={group.pre_screening_details}
+                  jdText={group.jd_text}
+                />
               </div>
             ))}
           </div>
@@ -162,21 +187,27 @@ export default function DashboardPage() {
             </p>
             <div className="space-y-2">
               {legacyDocs.map((doc) => (
-                <div key={doc.id} className="border rounded p-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400">
-                      {new Date(doc.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {doc.doc_type === 'resume' ? 'Resume' : 'Cover Letter'}
-                    </p>
+                <div key={doc.id} className="border rounded p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">
+                        {new Date(doc.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {doc.doc_type === 'resume' ? 'Resume' : 'Cover Letter'}
+                      </p>
+                    </div>
+                    <a
+                      href={doc.doc_type === 'resume' ? `/api/resume/pdf?document_id=${doc.id}` : `/api/cover-letter/pdf?document_id=${doc.id}`}
+                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600 whitespace-nowrap"
+                    >
+                      Download PDF
+                    </a>
                   </div>
-                  <a
-                    href={doc.doc_type === 'resume' ? `/api/resume/pdf?document_id=${doc.id}` : `/api/cover-letter/pdf?document_id=${doc.id}`}
-                    className="text-sm border rounded px-3 py-1.5 hover:border-blue-600 whitespace-nowrap"
-                  >
-                    Download PDF
-                  </a>
+                  <div className="mt-3 border rounded-lg p-3 bg-gray-50 text-xs text-gray-400">
+                    Pre-flight audit unavailable for documents generated before
+                    per-application tracking was enabled.
+                  </div>
                 </div>
               ))}
             </div>
