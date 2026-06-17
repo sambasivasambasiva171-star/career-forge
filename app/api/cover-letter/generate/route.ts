@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
     .from('generated_documents')
     .insert({
       user_id: user.id,
+      resume_id,
+      jd_id,
       doc_type: 'cover_letter',
       content_json: { cover_letter_text: result.cover_letter_text },
     })

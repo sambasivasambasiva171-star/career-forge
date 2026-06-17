@@ -111,20 +111,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })
   }
 
-  const { error: insertError } = await supabase
+  const { data: insertedDoc, error: insertError } = await supabase
     .from('generated_documents')
     .insert({
       user_id: user.id,
+      resume_id,
+      jd_id,
       doc_type: 'resume',
       content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant, questionnaire_skipped },
     })
     .select('id')
     .single()
 
-  if (insertError) {
+  if (insertError || !insertedDoc) {
     console.error('Failed to save generated resume:', insertError)
     return NextResponse.json({ error: 'Failed to save generated resume.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, resume: finalResume })
+  return NextResponse.json({ success: true, resume: finalResume, document_id: insertedDoc.id })
 }
