@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   bullet: {
-    fontSize: 10.5,
+    fontSize: 11,
     marginLeft: 12,
     marginBottom: 2,
   },
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   skillItem: {
-    fontSize: 10,
+    fontSize: 11,
     marginRight: 8,
     marginBottom: 2,
   },
