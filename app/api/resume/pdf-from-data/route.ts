@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
   let body: unknown
   try {
     body = await request.json()
+    console.error('PDF_RAW_BODY:', JSON.stringify(body))
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
