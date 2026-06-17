@@ -10,6 +10,35 @@ For EVERY item in validated_additions:
 - If the item has "work_experience_index" and "responsibility_index" fields (both numbers, not undefined): REPLACE the responsibility at that exact position in that work_experience entry's responsibilities array with the item's "resume_bullet" text (this is a rewrite of an existing bullet, not a new addition).
 - If the item does NOT have work_experience_index/responsibility_index (undefined/missing): add its "resume_bullet" as a NEW bullet point appended to the responsibilities array of the most contextually relevant work_experience entry, or the most recent role if none fits.
 
+SKILLS RULES — follow exactly:
+
+1. MAXIMUM 12 skills total. If more than 12 qualify, keep only the 12 most relevant to the job description keywords.
+
+2. REMOVE all generic soft skills. These add no ATS value and must never appear in the output:
+   - Fast Learner, Quick Learner
+   - Team Player, Teamwork, Teamwork & Collaboration
+   - Hard Working, Dedicated, Motivated
+   - Adaptability, Flexibility
+   - Reliability, Punctuality, Reliability & Punctuality
+   - Professional Conduct, Work Ethic
+   - Communication Skills (too vague — only include if the JD specifically lists a communication tool or method e.g. "written communication for regulatory reports")
+   - Attention to Detail (only include if the JD uses this exact phrase as a stated requirement)
+
+3. DEDUPLICATE synonyms. When two or more skills mean the same thing, keep only the one that most closely matches the JD wording. Examples:
+   - "Guest Service Recovery" + "Customer Complaint Resolution" -> keep whichever phrase appears in the JD, drop the other
+   - "Conflict Management" + "Problem Solving" -> keep one
+   - "Organisation Skills" + "Time Management" -> keep one
+   - "Customer Service" + "Customer-Facing Operations" -> keep one
+
+4. PREFER hard skills and JD-exact keyword matches over generic descriptors. A skill that appears verbatim in the JD is worth 3 generic skills for ATS scoring purposes.
+
+5. FORMAT: Each skill as a concise noun phrase, maximum 4 words. Do not truncate. If a natural skill name exceeds 4 words, shorten it to its most recognisable form.
+   - "Customer Service" (correct)
+   - "Crisis Management" (correct)
+   - "Operational Procedures" (correct)
+   - "Customer-Facing Operations Management and Support" (incorrect — too long)
+   - "Working Under Pressure in Fast-Paced Environments" (incorrect — too long)
+
 CRITICAL RULES ON PROJECTS:
 - Only include a "projects" array if the ORIGINAL resume data already contained real projects (e.g. software projects, academic projects, portfolio work).
 - NEVER create new project entries from validated_additions. Validated additions are work experience enhancements and skills only — never projects.

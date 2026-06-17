@@ -1423,12 +1423,12 @@ function ReviewPageContent() {
                     <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Skills</h4>
                     <div className="flex flex-wrap gap-2">
                       {finalResume.skills.map((skill, i) => (
-                        <div key={i} className="flex items-center gap-0.5 border rounded px-1 py-0.5">
+                        <div key={i} className="flex items-center gap-1.5 border rounded px-2 py-0.5">
                           <input
                             type="text"
                             value={skill}
                             onChange={(e) => updateSkill(i, e.target.value)}
-                            className="text-xs w-28 outline-none"
+                            className="text-xs w-44 outline-none whitespace-nowrap"
                           />
                           <button
                             onClick={() => removeSkill(i)}
