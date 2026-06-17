@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
   const resumeData = parsed.data.resume_data as Parameters<typeof ResumeDocument>[0]['data']
 
   try {
+    // TEMP DEBUG — remove after fix
+    console.log('PDF_DEBUG parsed resume_data:', JSON.stringify(resumeData, null, 2))
+    console.log('PDF_DEBUG work_experience type:', typeof resumeData.work_experience, Array.isArray(resumeData.work_experience))
+    console.log('PDF_DEBUG skills type:', typeof resumeData.skills, Array.isArray(resumeData.skills))
+
     const pdfBuffer = await renderToBuffer(ResumeDocument({ data: resumeData }))
 
     const docTitle = (parsed.data.resume_data as { document_title?: string }).document_title
