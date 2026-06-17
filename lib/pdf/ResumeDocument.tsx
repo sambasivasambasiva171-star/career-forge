@@ -78,12 +78,13 @@ interface ResumeData {
 }
 
 export function ResumeDocument({ data }: { data: ResumeData }) {
-  const contactParts = [data.contact.email, data.contact.phone, data.contact.location, data.contact.linkedin].filter(Boolean)
+  const contact = data.contact || { name: null, email: null, phone: null, location: null, linkedin: null }
+  const contactParts = [contact.email, contact.phone, contact.location, contact.linkedin].filter(Boolean)
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.name}>{data.contact.name || 'Candidate Name'}</Text>
+        <Text style={styles.name}>{contact.name || 'Candidate Name'}</Text>
         {contactParts.length > 0 && <Text style={styles.contactLine}>{contactParts.join('  |  ')}</Text>}
 
         {data.summary && (
@@ -93,7 +94,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
           </>
         )}
 
-        {data.skills.length > 0 && (
+        {(data.skills || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Skills</Text>
             <View style={styles.skillsRow}>
@@ -104,7 +105,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
           </>
         )}
 
-        {data.work_experience.length > 0 && (
+        {(data.work_experience || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Work Experience</Text>
             {data.work_experience.map((exp, i) => (
@@ -114,7 +115,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
                   {[exp.start_date, exp.end_date].filter(Boolean).join(' – ')}
                   {exp.location ? `  •  ${exp.location}` : ''}
                 </Text>
-                {exp.responsibilities.map((r, j) => (
+                {(exp.responsibilities || []).map((r, j) => (
                   <Text key={j} style={styles.bullet}>• {r}</Text>
                 ))}
               </View>
@@ -122,14 +123,14 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
           </>
         )}
 
-        {data.projects.length > 0 && (
+        {(data.projects || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Projects</Text>
             {data.projects.map((proj, i) => (
               <View key={i} style={styles.entryBlock}>
                 <Text style={styles.entryTitle}>{proj.name}</Text>
                 <Text style={styles.bullet}>{proj.description}</Text>
-                {proj.technologies.length > 0 && (
+                {(proj.technologies || []).length > 0 && (
                   <Text style={styles.entryMeta}>Technologies: {proj.technologies.join(', ')}</Text>
                 )}
               </View>
@@ -137,7 +138,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
           </>
         )}
 
-        {data.education.length > 0 && (
+        {(data.education || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Education</Text>
             {data.education.map((edu, i) => (
@@ -149,7 +150,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
           </>
         )}
 
-        {data.certifications.length > 0 && (
+        {(data.certifications || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Certifications</Text>
             {data.certifications.map((cert, i) => (
