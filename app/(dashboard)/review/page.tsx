@@ -123,6 +123,10 @@ function ReviewPageContent() {
   } | null>(null)
 
   const [missingDateRoles, setMissingDateRoles] = useState<Array<{ title: string; company: string; start_date: string | null; end_date: string | null }> | null>(null)
+  const [missingDateModalMode, setMissingDateModalMode] = useState<'warning' | 'editing'>('warning')
+  const [dateEdits, setDateEdits] = useState<Record<string, { start_date: string; end_date: string }>>({})
+  const [savingDates, setSavingDates] = useState(false)
+  const [dateSaveError, setDateSaveError] = useState<string | null>(null)
 
   const [personaType, setPersonaType] = useState<string | null>(null)
   const [showSkipWarning, setShowSkipWarning] = useState(false)
@@ -346,6 +350,7 @@ function ReviewPageContent() {
         .map((role) => ({ title: role.title, company: role.company, start_date: role.start_date, end_date: role.end_date }))
 
       if (affected.length > 0) {
+        setMissingDateModalMode('warning')
         setMissingDateRoles(affected)
         return
       }
@@ -404,6 +409,62 @@ function ReviewPageContent() {
       setError('Network error. Please try again.')
     } finally {
       setGeneratingResume(false)
+    }
+  }
+
+  async function handleSaveAndGenerate() {
+    if (!resumeId || !missingDateRoles) return
+
+    setSavingDates(true)
+    setDateSaveError(null)
+
+    try {
+      const supabase = createClient()
+      const { data: resumeRow, error: fetchError } = await supabase
+        .from('resumes')
+        .select('parsed_json')
+        .eq('id', resumeId)
+        .single()
+
+      if (fetchError || !resumeRow) throw fetchError || new Error('Resume not found')
+
+      const parsedJson = resumeRow.parsed_json as { work_experience?: WorkExperienceEntry[] } | null
+      const workExperience = parsedJson?.work_experience || []
+
+      const updatedWorkExperience = workExperience.map((role) => {
+        const key = `${role.title}__${role.company}`
+        const edit = dateEdits[key]
+        if (!edit) return role
+        return {
+          ...role,
+          start_date: edit.start_date || role.start_date,
+          end_date: edit.end_date || 'Present',
+        }
+      })
+
+      const { error: updateError } = await supabase
+        .from('resumes')
+        .update({
+          parsed_json: {
+            ...parsedJson,
+            work_experience: updatedWorkExperience,
+          },
+        })
+        .eq('id', resumeId)
+
+      if (updateError) throw updateError
+
+      setOriginalWorkExperience(updatedWorkExperience)
+      setMissingDateRoles(null)
+      setMissingDateModalMode('warning')
+      setDateEdits({})
+
+      await handleGenerateResume()
+    } catch (err) {
+      console.error('Failed to save dates:', err)
+      setDateSaveError('Failed to save. Please try again.')
+    } finally {
+      setSavingDates(false)
     }
   }
 
@@ -682,12 +743,22 @@ function ReviewPageContent() {
     }
   }
 
+  const canSaveDateEdits = (missingDateRoles || []).every((role) => {
+    const key = `${role.title}__${role.company}`
+    const edit = dateEdits[key]
+    const missingStart = !role.start_date || role.start_date.trim() === ''
+    if (missingStart && (!edit?.start_date || edit.start_date.trim() === '')) {
+      return false
+    }
+    return true
+  })
+
   return (
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
       <StepProgress current={3} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {missingDateRoles && missingDateRoles.length > 0 && (
+      {missingDateRoles && missingDateRoles.length > 0 && missingDateModalMode === 'warning' && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Missing Employment Dates Detected</h3>
@@ -707,10 +778,106 @@ function ReviewPageContent() {
                 Cancel
               </button>
               <button
-                onClick={() => router.push(`/upload?resume_id=${resumeId}&jd_id=${jdId}`)}
+                onClick={() => {
+                  const initialEdits: Record<string, { start_date: string; end_date: string }> = {}
+                  missingDateRoles.forEach((role) => {
+                    initialEdits[`${role.title}__${role.company}`] = {
+                      start_date: role.start_date || '',
+                      end_date: role.end_date || '',
+                    }
+                  })
+                  setDateEdits(initialEdits)
+                  setDateSaveError(null)
+                  setMissingDateModalMode('editing')
+                }}
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium"
               >
-                Edit My Details
+                Fix Dates →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {missingDateRoles && missingDateRoles.length > 0 && missingDateModalMode === 'editing' && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900">Fill In Missing Dates</h3>
+            <p className="text-sm text-gray-500">
+              Fill in the missing dates below. These will be saved automatically.
+            </p>
+            <div className="space-y-4">
+              {missingDateRoles.map((role) => {
+                const key = `${role.title}__${role.company}`
+                const edit = dateEdits[key]
+                const missingStart = !role.start_date || role.start_date.trim() === ''
+                const missingEnd = !isOngoingRole(role.end_date) && (!role.end_date || role.end_date.trim() === '')
+
+                return (
+                  <div key={key} className="border rounded-lg p-4 space-y-3">
+                    <div>
+                      <p className="font-medium text-gray-900">{role.title}</p>
+                      <p className="text-sm text-gray-500">{role.company}</p>
+                    </div>
+
+                    {missingStart && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="month"
+                          value={edit?.start_date || ''}
+                          onChange={(e) => setDateEdits((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], start_date: e.target.value },
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="YYYY-MM"
+                        />
+                      </div>
+                    )}
+
+                    {missingEnd && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          End Date
+                          <span className="text-gray-400 font-normal ml-1">
+                            (or leave blank if this is your current role)
+                          </span>
+                        </label>
+                        <input
+                          type="month"
+                          value={edit?.end_date || ''}
+                          onChange={(e) => setDateEdits((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], end_date: e.target.value },
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="YYYY-MM (leave blank if current)"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {dateSaveError && <p className="text-sm text-red-600">{dateSaveError}</p>}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setMissingDateModalMode('warning')}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleSaveAndGenerate}
+                disabled={!canSaveDateEdits || savingDates}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingDates ? 'Saving...' : 'Save & Generate CV'}
               </button>
             </div>
           </div>
