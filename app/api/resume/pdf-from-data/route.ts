@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
 
   try {
     // TEMP DEBUG — remove after fix
-    console.log('PDF_DEBUG parsed resume_data:', JSON.stringify(resumeData, null, 2))
-    console.log('PDF_DEBUG work_experience type:', typeof resumeData.work_experience, Array.isArray(resumeData.work_experience))
-    console.log('PDF_DEBUG skills type:', typeof resumeData.skills, Array.isArray(resumeData.skills))
+    console.error('PDF_DEBUG parsed resume_data:', JSON.stringify(resumeData, null, 2))
+    console.error('PDF_DEBUG work_experience type:', typeof resumeData.work_experience, Array.isArray(resumeData.work_experience))
+    console.error('PDF_DEBUG skills type:', typeof resumeData.skills, Array.isArray(resumeData.skills))
 
     const pdfBuffer = await renderToBuffer(ResumeDocument({ data: resumeData }))
 
