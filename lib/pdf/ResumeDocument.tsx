@@ -162,7 +162,7 @@ export function ResumeDocument({ data }: { data: ResumeData }) {
         {(data.pre_screening_details || []).length > 0 && (
           <>
             <Text style={styles.sectionTitle}>
-              {data.certifications.length > 0 ? 'Pre-Screening Details' : 'Additional Information'}
+              {(data.certifications || []).length > 0 ? 'Pre-Screening Details' : 'Additional Information'}
             </Text>
             {data.pre_screening_details.map((detail, i) => (
               <Text key={i} style={styles.bullet}>• {detail}</Text>
