@@ -4,6 +4,7 @@ import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { RESUME_GENERATE_SYSTEM_PROMPT, buildResumeGenerateUserPrompt } from '@/lib/ai/prompts/resume-generate'
 import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
+import { applyUKSpellingDeep } from '@/lib/utils/spelling'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -94,6 +95,9 @@ export async function POST(request: NextRequest) {
     })
 
     finalResume = parseJsonResponse<object>(aiResponse)
+    if (languageVariant === 'uk_english') {
+      finalResume = applyUKSpellingDeep(finalResume)
+    }
   } catch (err) {
     console.error('Resume generation AI error:', err)
     return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })
