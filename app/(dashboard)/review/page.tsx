@@ -200,6 +200,7 @@ function ReviewPageContent() {
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [coverLetterDocId, setCoverLetterDocId] = useState<string | null>(null)
+  const [cvDocumentId, setCvDocumentId] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
   const [currentStep, setCurrentStep] = useState(0)
@@ -403,6 +404,9 @@ function ReviewPageContent() {
       const resume = data.resume as EditableResume
       setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
       setGlobalStep(4)
+      if (data.document_id) {
+        setCvDocumentId(data.document_id)
+      }
 
       const omitted = currentOriginalWorkExperience.filter(
         (orig) => !resume.work_experience.some((kept) => kept.title === orig.title && kept.company === orig.company)
@@ -472,8 +476,8 @@ function ReviewPageContent() {
   }
 
   async function handleGenerateCoverLetter() {
-    if (!resumeId || !jdId) {
-      setError('Missing resume or job description ID.')
+    if (!cvDocumentId || !jdId) {
+      setError('Please generate your CV before generating a cover letter.')
       return
     }
 
@@ -484,7 +488,7 @@ function ReviewPageContent() {
       const res = await fetch('/api/cover-letter/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId }),
+        body: JSON.stringify({ resume_id: cvDocumentId, jd_id: jdId }),
       })
 
       const data = await res.json()
@@ -1528,8 +1532,9 @@ function ReviewPageContent() {
                 <div>
                   <button
                     onClick={handleGenerateCoverLetter}
-                    disabled={generatingCoverLetter}
-                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50"
+                    disabled={generatingCoverLetter || !cvDocumentId}
+                    title={!cvDocumentId ? 'Generate your CV first' : undefined}
+                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
                   </button>
