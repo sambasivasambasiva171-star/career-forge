@@ -62,7 +62,46 @@ export const generateResumeWithFactsSchema = z.object({
 })
 
 export const renderResumePdfSchema = z.object({
-  resume_data: z.record(z.string(), z.unknown()),
+  resume_data: z.object({
+    document_title: z.string().optional(),
+    contact: z.object({
+      name: z.string().nullable().optional(),
+      email: z.string().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      location: z.string().nullable().optional(),
+      linkedin: z.string().nullable().optional(),
+    }).default({ name: null, email: null, phone: null, location: null, linkedin: null }),
+
+    summary: z.string().nullable().optional(),
+
+    skills: z.array(z.string()).default([]),
+
+    work_experience: z.array(z.object({
+      title: z.string().default(''),
+      company: z.string().default(''),
+      start_date: z.string().nullable().optional(),
+      end_date: z.string().nullable().optional(),
+      location: z.string().nullable().optional(),
+      responsibilities: z.array(z.string()).default([]),
+    })).default([]),
+
+    education: z.array(z.object({
+      degree: z.string().default(''),
+      institution: z.string().default(''),
+      start_date: z.string().nullable().optional(),
+      end_date: z.string().nullable().optional(),
+    })).default([]),
+
+    projects: z.array(z.object({
+      name: z.string().default(''),
+      description: z.string().default(''),
+      technologies: z.array(z.string()).default([]),
+    })).default([]),
+
+    certifications: z.array(z.string()).default([]),
+
+    pre_screening_details: z.array(z.string()).default([]),
+  }),
 })
 
 export const updateProfileSchema = z.object({
