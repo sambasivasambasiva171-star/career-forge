@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const resumeData = parsed.data.resume_data as never
+  const resumeData = parsed.data.resume_data as Parameters<typeof ResumeDocument>[0]['data']
 
   try {
     const pdfBuffer = await renderToBuffer(ResumeDocument({ data: resumeData }))
