@@ -6,6 +6,33 @@ import StepProgress from '@/components/StepProgress'
 import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 
+function isOngoingRole(endDate: string | null): boolean {
+  const end = endDate?.toLowerCase() ?? ''
+  return end.includes('present') || end.includes('current') || end.includes('now')
+}
+
+function getMissingDateLabel(role: {
+  title: string
+  company: string
+  start_date: string | null
+  end_date: string | null
+}): string {
+  const missing: string[] = []
+
+  if (!role.start_date || role.start_date.trim() === '') {
+    missing.push('start date')
+  }
+
+  const isOngoing = isOngoingRole(role.end_date)
+
+  if (!isOngoing && (!role.end_date || role.end_date.trim() === '')) {
+    missing.push('end date')
+  }
+
+  const missingStr = missing.join(' and ')
+  return `• ${role.title} at ${role.company} — ${missingStr} missing`
+}
+
 interface WorkExperienceEntry {
   title: string
   company: string
@@ -94,6 +121,8 @@ function ReviewPageContent() {
     missing_skills: Array<{ skill: string; jd_context: string }>
     partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
   } | null>(null)
+
+  const [missingDateRoles, setMissingDateRoles] = useState<Array<{ title: string; company: string; start_date: string | null; end_date: string | null }> | null>(null)
 
   const [personaType, setPersonaType] = useState<string | null>(null)
   const [showSkipWarning, setShowSkipWarning] = useState(false)
@@ -307,6 +336,19 @@ function ReviewPageContent() {
       const workExperience = (resumeRow?.parsed_json as { work_experience?: WorkExperienceEntry[] } | null)?.work_experience || []
       currentOriginalWorkExperience = workExperience
       setOriginalWorkExperience(workExperience)
+
+      const affected = workExperience
+        .filter((role) => {
+          const missingStart = !role.start_date || role.start_date.trim() === ''
+          const missingEnd = !isOngoingRole(role.end_date) && (!role.end_date || role.end_date.trim() === '')
+          return missingStart || missingEnd
+        })
+        .map((role) => ({ title: role.title, company: role.company, start_date: role.start_date, end_date: role.end_date }))
+
+      if (affected.length > 0) {
+        setMissingDateRoles(affected)
+        return
+      }
     }
 
     setGeneratingResume(true)
@@ -644,6 +686,36 @@ function ReviewPageContent() {
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
       <StepProgress current={3} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      {missingDateRoles && missingDateRoles.length > 0 && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Missing Employment Dates Detected</h3>
+            <ul className="text-sm text-gray-700 space-y-1">
+              {missingDateRoles.map((role, i) => (
+                <li key={i}>{getMissingDateLabel(role)}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-gray-500">
+              Please update these before generating your CV to ensure ATS compliance.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setMissingDateRoles(null)}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => router.push(`/upload?resume_id=${resumeId}&jd_id=${jdId}`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium"
+              >
+                Edit My Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddBackModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
