@@ -4,7 +4,7 @@ import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { RESUME_GENERATE_SYSTEM_PROMPT, buildResumeGenerateUserPrompt } from '@/lib/ai/prompts/resume-generate'
 import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
-import { applyUKSpellingDeep } from '@/lib/utils/spelling'
+import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -79,7 +79,15 @@ export async function POST(request: NextRequest) {
   }
 
   const validatedAdditions = Array.isArray(resume.validated_additions) ? resume.validated_additions : []
-  const languageVariant = profile.job_market === 'GB'
+  /**
+   * job_market enum values:
+   *   'GB'     → UK English (enforceUKSpelling applied)
+   *   'IN'     → US English (India / international)
+   *   'GLOBAL' → US English (fallback)
+   * Do NOT use 'UK', 'US', or any other string — they will silently
+   * fall through to US English without warning.
+   */
+  const languageVariant = isUKMarket(profile.job_market)
     ? 'uk_english'
     : profile.job_market === 'IN' || profile.job_market === 'GLOBAL'
     ? 'us_english'

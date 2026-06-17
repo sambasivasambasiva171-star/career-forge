@@ -67,3 +67,26 @@ export function applyUKSpellingDeep<T>(value: T): T {
   }
   return value
 }
+
+const VALID_JOB_MARKETS = ['GB', 'IN', 'GLOBAL'] as const
+export type JobMarket = typeof VALID_JOB_MARKETS[number]
+
+/**
+ * Returns true only for the GB market (UK English output).
+ * Logs a warning in development if an unrecognised value is passed.
+ */
+export function isUKMarket(jobMarket: string | null | undefined): boolean {
+  if (!jobMarket) return false
+
+  if (!VALID_JOB_MARKETS.includes(jobMarket as JobMarket)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[Career Forge] Unrecognised job_market value: "${jobMarket}". ` +
+        `Valid values: ${VALID_JOB_MARKETS.join(', ')}. Defaulting to US English.`
+      )
+    }
+    return false
+  }
+
+  return jobMarket === 'GB'
+}
