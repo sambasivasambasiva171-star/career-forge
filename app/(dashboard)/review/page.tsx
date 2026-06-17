@@ -888,6 +888,10 @@ function ReviewPageContent() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Add Back Older Roles</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              These roles will be inserted using your original CV text and will
+              not be AI-optimised for this job description.
+            </p>
             <p className="text-sm text-gray-500">Select any roles you&apos;d like to re-include in your CV.</p>
             <div className="space-y-2">
               {omittedRoles.map((role, i) => (
@@ -902,6 +906,10 @@ function ReviewPageContent() {
                 </label>
               ))}
             </div>
+            <p className="text-xs text-gray-400 border-t pt-3 mt-3">
+              For fully optimised output including these roles, return to the
+              upload page and re-generate your CV.
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => { setShowAddBackModal(false); setSelectedToAddBack(new Set()) }}
