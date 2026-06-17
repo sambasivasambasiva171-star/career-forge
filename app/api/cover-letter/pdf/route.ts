@@ -1,9 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { CoverLetterDocument } from '@/lib/pdf/CoverLetterDocument'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const documentId = searchParams.get('document_id')
+
+  if (!documentId) {
+    return NextResponse.json({ error: 'document_id is required' }, { status: 400 })
+  }
+
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -11,20 +18,19 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: latestCoverLetter, error: docError } = await supabase
+  const { data: coverLetterDoc, error: docError } = await supabase
     .from('generated_documents')
     .select('id, content_json, user_id')
+    .eq('id', documentId)
     .eq('user_id', user.id)
     .eq('doc_type', 'cover_letter')
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
 
-  if (docError || !latestCoverLetter) {
+  if (docError || !coverLetterDoc) {
     return NextResponse.json({ error: 'No generated cover letter found.' }, { status: 404 })
   }
 
-  const content = latestCoverLetter.content_json as { cover_letter_text?: string }
+  const content = coverLetterDoc.content_json as { cover_letter_text?: string }
 
   if (!content.cover_letter_text) {
     return NextResponse.json({ error: 'Cover letter content is empty.' }, { status: 404 })

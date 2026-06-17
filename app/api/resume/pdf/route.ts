@@ -4,6 +4,13 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { ResumeDocument } from '@/lib/pdf/ResumeDocument'
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const documentId = searchParams.get('document_id')
+
+  if (!documentId) {
+    return NextResponse.json({ error: 'document_id is required' }, { status: 400 })
+  }
+
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -11,27 +18,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: latestResume, error: docError } = await supabase
+  const { data: resumeDoc, error: docError } = await supabase
     .from('generated_documents')
     .select('id, content_json, user_id')
+    .eq('id', documentId)
     .eq('user_id', user.id)
     .eq('doc_type', 'resume')
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
 
-  if (docError || !latestResume) {
+  if (docError || !resumeDoc) {
     return NextResponse.json({ error: 'No generated resume found.' }, { status: 404 })
   }
 
   try {
-    const pdfBuffer = await renderToBuffer(ResumeDocument({ data: latestResume.content_json as never }))
+    const pdfBuffer = await renderToBuffer(ResumeDocument({ data: resumeDoc.content_json as never }))
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${(latestResume.content_json as { document_title?: string }).document_title === 'Curriculum Vitae' ? 'CV' : 'Resume'}_${(latestResume.content_json as { contact?: { name?: string } }).contact?.name?.replace(/\s+/g, '_') || 'document'}.pdf"`,
+        'Content-Disposition': `attachment; filename="${(resumeDoc.content_json as { document_title?: string }).document_title === 'Curriculum Vitae' ? 'CV' : 'Resume'}_${(resumeDoc.content_json as { contact?: { name?: string } }).contact?.name?.replace(/\s+/g, '_') || 'document'}.pdf"`,
       },
     })
   } catch (err) {

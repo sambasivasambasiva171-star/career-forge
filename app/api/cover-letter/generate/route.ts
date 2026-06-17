@@ -86,18 +86,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cover letter generation returned an unexpected format.' }, { status: 502 })
   }
 
-  const { error: insertError } = await supabase
+  const { data: insertedDoc, error: insertError } = await supabase
     .from('generated_documents')
     .insert({
       user_id: user.id,
       doc_type: 'cover_letter',
       content_json: { cover_letter_text: result.cover_letter_text },
     })
+    .select('id')
+    .single()
 
-  if (insertError) {
+  if (insertError || !insertedDoc) {
     console.error('Failed to save cover letter:', insertError)
     return NextResponse.json({ error: 'Failed to save cover letter.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, cover_letter_text: result.cover_letter_text })
+  return NextResponse.json({ success: true, cover_letter_text: result.cover_letter_text, document_id: insertedDoc.id })
 }

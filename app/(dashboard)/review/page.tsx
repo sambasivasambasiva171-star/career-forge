@@ -199,6 +199,7 @@ function ReviewPageContent() {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [coverLetterDocId, setCoverLetterDocId] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
   const [currentStep, setCurrentStep] = useState(0)
@@ -494,6 +495,7 @@ function ReviewPageContent() {
       }
 
       setCoverLetter(data.cover_letter_text)
+      setCoverLetterDocId(data.document_id)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -1532,10 +1534,10 @@ function ReviewPageContent() {
                     {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
                   </button>
 
-                  {coverLetter && (
+                  {coverLetter && coverLetterDocId && (
                     <div className="space-y-2 mt-3">
                       <a
-                        href="/api/cover-letter/pdf"
+                        href={`/api/cover-letter/pdf?document_id=${coverLetterDocId}`}
                         className="inline-block border rounded px-4 py-2 text-sm hover:border-blue-600"
                       >
                         Download cover letter PDF

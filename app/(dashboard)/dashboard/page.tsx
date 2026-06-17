@@ -112,7 +112,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-2 pt-1">
                   {group.resume_doc_id && (
                     <a
-                      href="/api/resume/pdf"
+                      href={`/api/resume/pdf?document_id=${group.resume_doc_id}`}
                       className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
                     >
                       Download Resume PDF
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                   )}
                   {group.cover_letter_doc_id && (
                     <a
-                      href="/api/cover-letter/pdf"
+                      href={`/api/cover-letter/pdf?document_id=${group.cover_letter_doc_id}`}
                       className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
                     >
                       Download Cover Letter PDF
