@@ -6,6 +6,15 @@ import StepProgress from '@/components/StepProgress'
 import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 
+interface WorkExperienceEntry {
+  title: string
+  company: string
+  start_date: string | null
+  end_date: string | null
+  location: string | null
+  responsibilities: string[]
+}
+
 interface EditableResume {
   contact: {
     name: string | null
@@ -15,14 +24,7 @@ interface EditableResume {
     linkedin: string | null
   }
   summary: string | null
-  work_experience: Array<{
-    title: string
-    company: string
-    start_date: string | null
-    end_date: string | null
-    location: string | null
-    responsibilities: string[]
-  }>
+  work_experience: WorkExperienceEntry[]
   education: Array<{
     degree: string
     institution: string
@@ -96,6 +98,11 @@ function ReviewPageContent() {
   const [personaType, setPersonaType] = useState<string | null>(null)
   const [showSkipWarning, setShowSkipWarning] = useState(false)
   const [questionnaireSkipped, setQuestionnaireSkipped] = useState(false)
+
+  const [originalWorkExperience, setOriginalWorkExperience] = useState<WorkExperienceEntry[]>([])
+  const [omittedRoles, setOmittedRoles] = useState<WorkExperienceEntry[]>([])
+  const [showAddBackModal, setShowAddBackModal] = useState(false)
+  const [selectedToAddBack, setSelectedToAddBack] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     if (!resumeId || !jdId || gapAnalysis) return
@@ -287,6 +294,21 @@ function ReviewPageContent() {
       return
     }
 
+    let currentOriginalWorkExperience = originalWorkExperience
+
+    if (retryCount === 0) {
+      const supabase = createClient()
+      const { data: resumeRow } = await supabase
+        .from('resumes')
+        .select('parsed_json')
+        .eq('id', resumeId)
+        .single()
+
+      const workExperience = (resumeRow?.parsed_json as { work_experience?: WorkExperienceEntry[] } | null)?.work_experience || []
+      currentOriginalWorkExperience = workExperience
+      setOriginalWorkExperience(workExperience)
+    }
+
     setGeneratingResume(true)
     setError(null)
 
@@ -331,6 +353,11 @@ function ReviewPageContent() {
 
       const resume = data.resume as EditableResume
       setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
+
+      const omitted = currentOriginalWorkExperience.filter(
+        (orig) => !resume.work_experience.some((kept) => kept.title === orig.title && kept.company === orig.company)
+      )
+      setOmittedRoles(omitted)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -481,6 +508,28 @@ function ReviewPageContent() {
     })
   }
 
+  function toggleSelectedToAddBack(index: number) {
+    setSelectedToAddBack((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  function confirmAddBack() {
+    const rolesToAdd = omittedRoles.filter((_, i) => selectedToAddBack.has(i))
+    if (rolesToAdd.length > 0) {
+      setFinalResume((prev) => prev ? { ...prev, work_experience: [...prev.work_experience, ...rolesToAdd] } : prev)
+    }
+    setOmittedRoles((prev) => prev.filter((_, i) => !selectedToAddBack.has(i)))
+    setSelectedToAddBack(new Set())
+    setShowAddBackModal(false)
+  }
+
   function updateSkill(index: number, value: string) {
     setFinalResume((prev) => {
       if (!prev) return prev
@@ -595,6 +644,43 @@ function ReviewPageContent() {
     <div className="max-w-3xl mx-auto mt-12 space-y-6 pb-12">
       <StepProgress current={3} />
       {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      {showAddBackModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Add Back Older Roles</h3>
+            <p className="text-sm text-gray-500">Select any roles you&apos;d like to re-include in your CV.</p>
+            <div className="space-y-2">
+              {omittedRoles.map((role, i) => (
+                <label key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedToAddBack.has(i)}
+                    onChange={() => toggleSelectedToAddBack(i)}
+                    className="mt-0.5"
+                  />
+                  <span>{role.title} at {role.company}{(role.start_date || role.end_date) ? ` (${role.start_date ?? ''} – ${role.end_date ?? ''})` : ''}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setShowAddBackModal(false); setSelectedToAddBack(new Set()) }}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAddBack}
+                disabled={selectedToAddBack.size === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                Add Selected
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSkipWarning && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
@@ -1062,6 +1148,20 @@ function ReviewPageContent() {
                       ))}
                     </div>
                   </section>
+
+                  {/* Omitted older roles notice — preview only, not included in PDF export */}
+                  {omittedRoles.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+                      ℹ {omittedRoles.length} older role{omittedRoles.length > 1 ? 's' : ''} {omittedRoles.length > 1 ? 'were' : 'was'} not included per best-practice guidelines for experienced professionals (most recent 2–3 roles only).{' '}
+                      <button
+                        onClick={() => setShowAddBackModal(true)}
+                        className="text-blue-700 underline hover:text-blue-900 font-medium"
+                      >
+                        + Add them back
+                      </button>
+                      {' '}if directly relevant to this application.
+                    </div>
+                  )}
 
                   {/* Skills */}
                   <section>
