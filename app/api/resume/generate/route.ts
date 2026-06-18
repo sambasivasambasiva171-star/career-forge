@@ -5,7 +5,7 @@ import { RESUME_GENERATE_SYSTEM_PROMPT, buildResumeGenerateUserPrompt } from '@/
 import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
 import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
-import { filterSkills } from '@/lib/utils/skills'
+import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -109,7 +109,18 @@ export async function POST(request: NextRequest) {
     }
 
     const rawSkills = (finalResume as { skills?: string[] }).skills || []
-    finalResume = { ...finalResume, skills: filterSkills(rawSkills, jd.raw_text) }
+    let processedSkills = filterSkills(rawSkills, jd.raw_text)
+
+    if (processedSkills.length < 6) {
+      const jdKeywords = extractJDKeywords(jd.raw_text)
+      const existing = new Set(processedSkills.map((s: string) => s.toLowerCase()))
+      const toAdd = jdKeywords
+        .filter((k: string) => !existing.has(k.toLowerCase()))
+        .slice(0, 8 - processedSkills.length)
+      processedSkills = [...processedSkills, ...toAdd]
+    }
+
+    finalResume = { ...finalResume, skills: processedSkills }
   } catch (err) {
     console.error('Resume generation AI error:', err)
     return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })

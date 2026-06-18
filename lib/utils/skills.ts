@@ -73,3 +73,57 @@ export function filterSkills(
     skill.trim().replace(/\b\w/g, c => c.toUpperCase())
   )
 }
+
+export function extractJDKeywords(jdText: string): string[] {
+  if (!jdText) return []
+
+  const hardSkillPatterns = [
+    /self.?check.?in/i,
+    /guest messaging platform/i,
+    /booking\.com/i,
+    /expedia/i,
+    /oyo app/i,
+    /housekeeping/i,
+    /front.?desk/i,
+    /food.?hygiene/i,
+    /food.?safety/i,
+    /food.?&.?beverage/i,
+    /crowd.?control/i,
+    /event.?management/i,
+    /property.?management/i,
+    /revenue.?management/i,
+    /cash.?handling/i,
+    /stock.?management/i,
+    /inventory.?management/i,
+    /health.?&.?safety/i,
+    /risk.?assessment/i,
+    /compliance/i,
+    /scheduling/i,
+    /rota.?management/i,
+    /microsoft.?office/i,
+    /excel/i,
+    /crm/i,
+    /pos.?system/i,
+    /point.?of.?sale/i,
+    /property.?management.?system/i,
+    /first.?aid/i,
+    /food.?hygiene.?certificate/i,
+    /driving.?licen[cs]e/i,
+    /sia.?licence/i,
+  ]
+
+  const found: string[] = []
+  for (const pattern of hardSkillPatterns) {
+    const match = jdText.match(pattern)
+    if (match) {
+      const cleaned = match[0]
+        .replace(/\./g, '')
+        .trim()
+        .replace(/\b\w/g, (c: string) => c.toUpperCase())
+      if (!found.includes(cleaned)) {
+        found.push(cleaned)
+      }
+    }
+  }
+  return found
+}

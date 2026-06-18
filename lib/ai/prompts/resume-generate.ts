@@ -1,3 +1,5 @@
+import { extractJDKeywords } from '@/lib/utils/skills'
+
 export const RESUME_GENERATE_SYSTEM_PROMPT = `You are a resume optimization engine. You will receive: (1) a candidate's structured resume data, (2) a list of validated skill additions the candidate approved, (3) the target job description, (4) the candidate's persona type (fresher or experienced), and (5) a language variant ("uk_english" or "us_english").
 
 Your job is to produce a FINAL, ATS-optimized resume structure that merges the validated additions naturally into the existing content and reorders/prioritizes sections per these rules:
@@ -120,7 +122,15 @@ export function buildResumeGenerateUserPrompt(
   languageVariant: string,
   preflightFacts: string[]
 ): string {
-  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (map these into "pre_screening_details" per the mapping rules):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
+  const jdHardSkills = extractJDKeywords(jdText)
+  const jdSkillsHint = jdHardSkills.length > 0
+    ? 'JD-SPECIFIC HARD SKILLS DETECTED — prioritise these first:\n' +
+      jdHardSkills.map((s: string) => '- ' + s).join('\n') + '\n' +
+      'Include these if the candidate demonstrates them. ' +
+      'Only skip if genuinely absent from their background.'
+    : ''
+
+  return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (map these into "pre_screening_details" per the mapping rules):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}\n\n${jdSkillsHint}`
 }
 
 export const COVER_LETTER_SYSTEM_PROMPT = `You are a cover letter writing engine. You will receive a candidate's final resume data (JSON), a target job description, and a language variant ("uk_english" or "us_english"). Write a professional cover letter (3-4 short paragraphs) that:
