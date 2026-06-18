@@ -6,6 +6,7 @@ import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
 import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
 import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
+import { normaliseDates, truncateSummary, removeIrrelevantRoles } from '@/lib/utils/cv-postprocess'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -121,6 +122,10 @@ export async function POST(request: NextRequest) {
     }
 
     finalResume = { ...finalResume, skills: processedSkills }
+
+    finalResume = normaliseDates(finalResume as Record<string, unknown>) as typeof finalResume
+    finalResume = truncateSummary(finalResume as Record<string, unknown>) as typeof finalResume
+    finalResume = removeIrrelevantRoles(finalResume as Record<string, unknown>, jd.raw_text) as typeof finalResume
   } catch (err) {
     console.error('Resume generation AI error:', err)
     return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })

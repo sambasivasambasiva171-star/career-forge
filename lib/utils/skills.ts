@@ -69,9 +69,11 @@ export function filterSkills(
   const capped = deduped.slice(0, 10)
 
   // Step 4 — normalise to title case
-  return capped.map(skill =>
-    skill.trim().replace(/\b\w/g, c => c.toUpperCase())
-  )
+  return capped.map(skill => {
+    const titleCased = skill.trim().replace(/\b\w/g, c => c.toUpperCase())
+    const words = titleCased.split(/\s+/)
+    return words.length > 4 ? words.slice(0, 4).join(' ') : titleCased
+  })
 }
 
 export function extractJDKeywords(jdText: string): string[] {
