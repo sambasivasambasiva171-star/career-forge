@@ -1,9 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import type { ResumeDocument } from '@/lib/pdf/ResumeDocument'
-
-type ResumeData = Parameters<typeof ResumeDocument>[0]['data']
 
 const PDFDownloadButtonInner = dynamic(
   () => import('./PDFDownloadButtonInner'),
@@ -17,11 +14,13 @@ const PDFDownloadButtonInner = dynamic(
   }
 )
 
-interface PDFDownloadButtonProps {
-  resumeData: ResumeData
+export interface PDFDownloadButtonProps {
+  type: 'resume' | 'cover-letter'
+  resumeData?: Record<string, unknown>
+  coverLetterText?: string
   filename: string
 }
 
-export function PDFDownloadButton({ resumeData, filename }: PDFDownloadButtonProps) {
-  return <PDFDownloadButtonInner resumeData={resumeData} filename={filename} />
+export function PDFDownloadButton(props: PDFDownloadButtonProps) {
+  return <PDFDownloadButtonInner {...props} />
 }

@@ -1262,7 +1262,8 @@ function ReviewPageContent() {
                       {finalResume.document_title || 'Resume'} — Editable Preview
                     </h3>
                     <PDFDownloadButton
-                      resumeData={finalResume}
+                      type="resume"
+                      resumeData={finalResume as unknown as Record<string, unknown>}
                       filename={`${finalResume.document_title === 'Curriculum Vitae' ? 'CV' : 'Resume'}_${finalResume.contact.name?.replace(/\s+/g, '_') || 'document'}.pdf`}
                     />
                   </div>
@@ -1507,14 +1508,13 @@ function ReviewPageContent() {
                     {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
                   </button>
 
-                  {coverLetter && coverLetterDocId && (
+                  {coverLetter && (
                     <div className="space-y-2 mt-3">
-                      <a
-                        href={`/api/cover-letter/pdf?document_id=${coverLetterDocId}`}
-                        className="inline-block border rounded px-4 py-2 text-sm hover:border-blue-600"
-                      >
-                        Download cover letter PDF
-                      </a>
+                      <PDFDownloadButton
+                        type="cover-letter"
+                        coverLetterText={coverLetter}
+                        filename={`Cover_Letter_${finalResume?.contact?.name?.replace(/\s+/g, '_') || 'document'}.pdf`}
+                      />
                       <div className="bg-gray-50 border rounded p-4 text-sm whitespace-pre-wrap">
                         {coverLetter}
                       </div>

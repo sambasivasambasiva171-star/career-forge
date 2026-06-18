@@ -3,21 +3,41 @@
 import { useEffect } from 'react'
 import { usePDF } from '@react-pdf/renderer'
 import { ResumeDocument } from '@/lib/pdf/ResumeDocument'
+import { CoverLetterDocument } from '@/lib/pdf/CoverLetterDocument'
+import type { PDFDownloadButtonProps } from './PDFDownloadButton'
 
 type ResumeData = Parameters<typeof ResumeDocument>[0]['data']
 
-interface Props {
-  resumeData: ResumeData
-  filename: string
-}
+export default function PDFDownloadButtonInner(props: PDFDownloadButtonProps) {
+  const getDocument = () => {
+    if (props.type === 'cover-letter' && props.coverLetterText) {
+      return <CoverLetterDocument text={props.coverLetterText} />
+    }
+    if (props.type === 'resume' && props.resumeData) {
+      return <ResumeDocument data={props.resumeData as unknown as ResumeData} />
+    }
+    return null
+  }
 
-export default function PDFDownloadButtonInner({ resumeData, filename }: Props) {
-  const [instance, updateInstance] = usePDF({ document: <ResumeDocument data={resumeData} /> })
+  const doc = getDocument()
+
+  const [instance, updateInstance] = usePDF(
+    doc ? { document: doc } : {}
+  )
 
   useEffect(() => {
-    updateInstance(<ResumeDocument data={resumeData} />)
+    const updated = getDocument()
+    if (updated) updateInstance(updated)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeData])
+  }, [props.resumeData, props.coverLetterText])
+
+  if (!doc) {
+    return (
+      <button disabled className="px-4 py-2 bg-gray-400 text-white rounded opacity-50 cursor-not-allowed">
+        No document
+      </button>
+    )
+  }
 
   if (instance.loading) {
     return (
@@ -38,7 +58,7 @@ export default function PDFDownloadButtonInner({ resumeData, filename }: Props) 
   return (
     <a
       href={instance.url!}
-      download={filename}
+      download={props.filename}
       className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
     >
       Download PDF
