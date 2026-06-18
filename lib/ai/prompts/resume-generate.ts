@@ -31,34 +31,28 @@ For EVERY item in validated_additions:
 - If the item has "work_experience_index" and "responsibility_index" fields (both numbers, not undefined): REPLACE the responsibility at that exact position in that work_experience entry's responsibilities array with the item's "resume_bullet" text (this is a rewrite of an existing bullet, not a new addition).
 - If the item does NOT have work_experience_index/responsibility_index (undefined/missing): add its "resume_bullet" as a NEW bullet point appended to the responsibilities array of the most contextually relevant work_experience entry, or the most recent role if none fits.
 
-SKILLS RULES — follow exactly:
+SKILLS RULES — MANDATORY, follow exactly or the output is invalid:
 
-1. MAXIMUM 12 skills total. If more than 12 qualify, keep only the 12 most relevant to the job description keywords.
+1. OUTPUT EXACTLY 8-10 SKILLS. Never fewer than 8, never more than 10. If you find yourself listing more than 10, you are doing it wrong — go back and remove the weakest/most generic ones until you have 10.
 
-2. REMOVE all generic soft skills. These add no ATS value and must never appear in the output:
-   - Fast Learner, Quick Learner
-   - Team Player, Teamwork, Teamwork & Collaboration
-   - Hard Working, Dedicated, Motivated
-   - Adaptability, Flexibility
-   - Reliability, Punctuality, Reliability & Punctuality
-   - Professional Conduct, Work Ethic
-   - Communication Skills (too vague — only include if the JD specifically lists a communication tool or method e.g. "written communication for regulatory reports")
-   - Attention to Detail (only include if the JD uses this exact phrase as a stated requirement)
+2. THE FOLLOWING SKILLS ARE PERMANENTLY BANNED. Never output these regardless of what the source CV says or what the JD requires:
+   BANNED: Fast Learner, Quick Learner, Team Player, Teamwork, Teamwork & Collaboration, Hard Working, Dedicated, Motivated, Adaptability, Flexibility, Reliability, Punctuality, Reliability & Punctuality, Professional Conduct, Work Ethic, Attention to Detail, Communication Skills, Communication, Interpersonal Skills, Problem Solving, Critical Thinking, Time Management, Organisation Skills, Organizational Skills, Multi-tasking, Multitasking, Self-motivated, Self-starter, Working Under Pressure, Fast-paced Environment
 
-3. DEDUPLICATE synonyms. When two or more skills mean the same thing, keep only the one that most closely matches the JD wording. Examples:
-   - "Guest Service Recovery" + "Customer Complaint Resolution" -> keep whichever phrase appears in the JD, drop the other
-   - "Conflict Management" + "Problem Solving" -> keep one
-   - "Organisation Skills" + "Time Management" -> keep one
-   - "Customer Service" + "Customer-Facing Operations" -> keep one
+3. DEDUPLICATE RUTHLESSLY. If two skills are about the same concept, keep ONE — the one that most exactly matches the JD wording. Customer-related example — pick ONE of: "Customer Service" OR "Customer-Facing Operations" OR "Customer Complaint Resolution" OR "Guest Service Recovery". Never output more than one customer-service variant.
 
-4. PREFER hard skills and JD-exact keyword matches over generic descriptors. A skill that appears verbatim in the JD is worth 3 generic skills for ATS scoring purposes.
+4. PRIORITY ORDER for selecting which skills to include:
+   First: Skills that appear VERBATIM in the job description
+   Second: Hard/technical skills from the source CV
+   Third: Domain-specific skills (e.g. "Guest Messaging Platform")
+   Never: Generic soft skills (see banned list above)
 
-5. FORMAT: Each skill as a concise noun phrase, maximum 4 words. Do not truncate. If a natural skill name exceeds 4 words, shorten it to its most recognisable form.
-   - "Customer Service" (correct)
-   - "Crisis Management" (correct)
-   - "Operational Procedures" (correct)
-   - "Customer-Facing Operations Management and Support" (incorrect — too long)
-   - "Working Under Pressure in Fast-Paced Environments" (incorrect — too long)
+5. FORMAT: Maximum 4 words per skill. No ampersands unless the skill is an industry-standard term (e.g. "Food & Beverage"). Each skill is a noun phrase, not a sentence.
+
+6. SELF-CHECK before outputting skills:
+   - Count them. Is the total between 8 and 10? If not, fix it.
+   - Are any on the banned list? If yes, remove them.
+   - Are any synonyms of each other? If yes, keep only one.
+   - Does each skill appear in the JD or represent a hard skill? If neither, remove it.
 
 CRITICAL RULES ON PROJECTS:
 - Only include a "projects" array if the ORIGINAL resume data already contained real projects (e.g. software projects, academic projects, portfolio work).
