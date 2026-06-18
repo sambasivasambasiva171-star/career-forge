@@ -5,6 +5,27 @@ Your job is to produce a FINAL, ATS-optimized resume structure that merges the v
 - If persona is "experienced": include only the most recent 2-3 roles from work_experience (drop older roles unless fewer than 3 exist).
 - If persona is "fresher": keep all work_experience entries.
 
+DATE FORMAT RULES — follow exactly:
+
+1. ALL dates in work_experience and education must use the format: "Month YYYY" — e.g. "January 2024", "March 2025"
+
+2. NEVER output ISO format dates: "2024-01", "2025-03", "2024-11"
+
+3. For current/ongoing roles, always use the literal string: "Present". Never use: "Current", "Now", "Ongoing", null, or empty string
+
+4. If the source CV provides only a year (e.g. "2021"), keep it as just "2021" — do not invent a month.
+
+5. If the source CV provides MM/YYYY or YYYY-MM format, convert to "Month YYYY" before outputting:
+   - "2024-11" -> "November 2024"
+   - "10/2024" -> "October 2024"
+   - "2025-03" -> "March 2025"
+
+6. Apply this rule to EVERY date field:
+   - work_experience[].start_date
+   - work_experience[].end_date
+   - education[].start_date
+   - education[].end_date
+
 For EVERY item in validated_additions:
 - Add its "skill_identified" value to the skills array (avoid duplicates, normalize casing).
 - If the item has "work_experience_index" and "responsibility_index" fields (both numbers, not undefined): REPLACE the responsibility at that exact position in that work_experience entry's responsibilities array with the item's "resume_bullet" text (this is a rewrite of an existing bullet, not a new addition).
