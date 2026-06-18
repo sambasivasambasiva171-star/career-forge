@@ -167,26 +167,44 @@ export function buildResumeGenerateUserPrompt(
   return `PERSONA: ${persona}\n\nLANGUAGE_VARIANT: ${languageVariant}\n\nCURRENT RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nVALIDATED ADDITIONS (approved by candidate):\n${JSON.stringify(validatedAdditions, null, 2)}\n\nADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE (map these into "pre_screening_details" per the mapping rules):\n${preflightFacts.length > 0 ? preflightFacts.join('\n') : 'None'}\n\nTARGET JOB DESCRIPTION:\n${jdText}\n\n${jdSkillsHint}`
 }
 
-export const COVER_LETTER_SYSTEM_PROMPT = `You are a cover letter writing engine. You will receive a candidate's final resume data (JSON), a target job description, and a language variant ("uk_english" or "us_english"). Write a professional cover letter (3-4 short paragraphs) that:
+export const COVER_LETTER_SYSTEM_PROMPT = `You are an expert UK careers coach writing tailored,
+concise cover letters that pass ATS screening and impress hiring managers.
 
-- Focuses on how the candidate's skills and experience directly address the business needs in the job description.
-- Does NOT use generic phrases like "I am writing to express my interest" or focus on the candidate's career ambitions.
-- References 2-3 specific, concrete items from the candidate's resume (roles, skills, achievements) and connects them to specific requirements in the JD.
-- Uses a professional, confident tone without being arrogant.
-- Does not invent any information not present in the resume.
-- Uses British spelling if language_variant is "uk_english" (e.g. "organisation", "specialised"), or American spelling if "us_english".
+STRUCTURE — follow exactly:
+- Opening: One sentence. State the role and your strongest relevant qualification.
+  Never start with "I am writing to express my interest".
+- Body paragraph 1: Connect your most recent relevant role to the top
+  requirement in the JD. Include one specific achievement or metric if available.
+- Body paragraph 2: Connect a second skill or experience to another JD requirement.
+  Reference something specific from the candidate's background.
+- Closing: One sentence. Confident, forward-looking. No filler.
+- Sign-off: "Yours sincerely," on one line, candidate name on next line.
 
-Return ONLY valid JSON — no markdown, no code fences, no explanation.
+RULES:
+1. Maximum 200 words total. Count carefully.
+2. Every sentence must reference either the JD or the candidate's CV.
+   No generic statements that could apply to any candidate.
+3. Never invent qualifications, achievements, or experience not in the CV.
+4. Never use these phrases:
+   - "I am writing to express my interest"
+   - "I am a passionate"
+   - "I believe I would be a great fit"
+   - "I am excited about the opportunity"
+   - "Proven track record"
+   - "Strong communication skills"
+   - "Team player"
+5. Use British spelling if language_variant is uk_english.
+6. For entry-level/fresher candidates: focus on transferable skills and
+   enthusiasm for learning. For experienced candidates: focus on impact
+   and specific achievements.
+7. Output valid JSON only: { "cover_letter_text": "..." }
+   No markdown, no backticks, no preamble.`
 
-Output structure:
-{
-  "cover_letter_text": string
-}
-
-The cover_letter_text should be plain text with paragraphs separated by double newlines (\\n\\n), ready to be placed directly into a document. Do not include a date, address blocks, or salutation placeholders like "[Hiring Manager Name]" — start directly with "Dear Hiring Manager," and end with "Sincerely," followed by the candidate's name from the resume.
-
-Return ONLY the JSON object.`
-
-export function buildCoverLetterUserPrompt(resumeJson: object, jdText: string, languageVariant: string): string {
-  return `LANGUAGE_VARIANT: ${languageVariant}\n\nFINAL RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
+export function buildCoverLetterUserPrompt(
+  resumeJson: object,
+  jdText: string,
+  languageVariant: string,
+  personaType?: string
+): string {
+  return `LANGUAGE_VARIANT: ${languageVariant}\n\nCANDIDATE TYPE: ${personaType === 'fresher' ? 'Entry-level / Fresher — limited work experience, focus on transferable skills' : 'Experienced professional — focus on achievements and impact'}\n\nFINAL RESUME DATA (JSON):\n${JSON.stringify(resumeJson, null, 2)}\n\nTARGET JOB DESCRIPTION:\n${jdText}`
 }

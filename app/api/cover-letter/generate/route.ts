@@ -4,6 +4,7 @@ import { getCompletion, parseJsonResponse } from '@/lib/ai/client'
 import { COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserPrompt } from '@/lib/ai/prompts/resume-generate'
 import { generateResumeSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant } from '@/lib/utils/location'
+import { isUKMarket, enforceUKSpelling } from '@/lib/utils/spelling'
 
 interface CoverLetterResult {
   cover_letter_text: string
@@ -59,17 +60,17 @@ export async function POST(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('location')
+    .select('location, job_market, persona_type')
     .eq('id', user.id)
     .single()
 
-  const languageVariant = deriveLanguageVariant(profile?.location ?? null)
+  const languageVariant = isUKMarket(profile?.job_market) ? 'uk_english' : deriveLanguageVariant(profile?.location ?? null)
 
   let result: CoverLetterResult
   try {
     const aiResponse = await getCompletion({
       systemPrompt: COVER_LETTER_SYSTEM_PROMPT,
-      userPrompt: buildCoverLetterUserPrompt(resumeDoc.content_json, jd.raw_text, languageVariant),
+      userPrompt: buildCoverLetterUserPrompt(resumeDoc.content_json, jd.raw_text, languageVariant, profile?.persona_type),
       temperature: 0.4,
       maxTokens: 1024,
     })
@@ -85,6 +86,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cover letter generation returned an unexpected format.' }, { status: 502 })
   }
 
+  const rawCoverLetter = result.cover_letter_text
+  const coverLetterText = isUKMarket(profile?.job_market)
+    ? enforceUKSpelling(rawCoverLetter)
+    : rawCoverLetter
+
   const { data: insertedDoc, error: insertError } = await supabase
     .from('generated_documents')
     .insert({
@@ -92,7 +98,7 @@ export async function POST(request: NextRequest) {
       resume_id,
       jd_id,
       doc_type: 'cover_letter',
-      content_json: { cover_letter_text: result.cover_letter_text },
+      content_json: { cover_letter_text: coverLetterText },
     })
     .select('id')
     .single()
@@ -102,5 +108,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save cover letter.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, cover_letter_text: result.cover_letter_text, document_id: insertedDoc.id })
+  return NextResponse.json({ success: true, cover_letter_text: coverLetterText, document_id: insertedDoc.id })
 }
