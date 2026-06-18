@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
       const existing = new Set(processedSkills.map((s: string) => s.toLowerCase()))
       const toAdd = jdKeywords
         .filter((k: string) => !existing.has(k.toLowerCase()))
+        .filter((k: string) => filterSkills([k], jd.raw_text).length > 0)
         .slice(0, 8 - processedSkills.length)
       processedSkills = [...processedSkills, ...toAdd]
     }
