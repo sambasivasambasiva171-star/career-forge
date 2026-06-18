@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
 import { PreflightPanel } from '@/components/PreflightPanel'
+import { PDFDownloadButton } from '@/components/PDFDownloadButton'
 
 interface DocGroup {
   jd_id: string
@@ -15,12 +16,15 @@ interface DocGroup {
   cover_letter_doc_id: string | null
   resume_id: string | null
   pre_screening_details: string[]
+  resume_content_json: Record<string, unknown> | null
+  cover_letter_text: string | null
 }
 
 interface LegacyDoc {
   id: string
   doc_type: string
   created_at: string
+  content_json: Record<string, unknown> | null
 }
 
 export default function DashboardPage() {
@@ -78,18 +82,24 @@ export default function DashboardPage() {
             cover_letter_doc_id: null,
             resume_id: doc.resume_id as string | null,
             pre_screening_details: [],
+            resume_content_json: null,
+            cover_letter_text: null,
           })
         }
         const group = groupMap.get(key)!
         if (doc.doc_type === 'resume') {
           group.resume_doc_id = doc.id as string
+          group.resume_content_json = doc.content_json as Record<string, unknown> | null
           group.pre_screening_details = (doc.content_json as { pre_screening_details?: string[] } | null)?.pre_screening_details || []
         }
-        if (doc.doc_type === 'cover_letter') group.cover_letter_doc_id = doc.id as string
+        if (doc.doc_type === 'cover_letter') {
+          group.cover_letter_doc_id = doc.id as string
+          group.cover_letter_text = (doc.content_json as { cover_letter_text?: string } | null)?.cover_letter_text || null
+        }
       }
 
       setGroups(Array.from(groupMap.values()))
-      setLegacyDocs(legacy.map((d) => ({ id: d.id as string, doc_type: d.doc_type as string, created_at: d.created_at as string })))
+      setLegacyDocs(legacy.map((d) => ({ id: d.id as string, doc_type: d.doc_type as string, created_at: d.created_at as string, content_json: d.content_json as Record<string, unknown> | null })))
       setLoading(false)
     }
     load()
@@ -140,21 +150,19 @@ export default function DashboardPage() {
                   {group.jd_snippet}{group.jd_snippet.length === 120 ? '...' : ''}
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {group.resume_doc_id && (
-                    <a
-                      href={`/api/resume/pdf?document_id=${group.resume_doc_id}`}
-                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
-                    >
-                      Download Resume PDF
-                    </a>
+                  {group.resume_doc_id && group.resume_content_json && (
+                    <PDFDownloadButton
+                      type="resume"
+                      resumeData={group.resume_content_json}
+                      filename={`Resume_${((group.resume_content_json as { contact?: { name?: string } }).contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                    />
                   )}
-                  {group.cover_letter_doc_id && (
-                    <a
-                      href={`/api/cover-letter/pdf?document_id=${group.cover_letter_doc_id}`}
-                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600"
-                    >
-                      Download Cover Letter PDF
-                    </a>
+                  {group.cover_letter_doc_id && group.cover_letter_text && (
+                    <PDFDownloadButton
+                      type="cover-letter"
+                      coverLetterText={group.cover_letter_text}
+                      filename={`Cover_Letter_${((group.resume_content_json as { contact?: { name?: string } } | null)?.contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                    />
                   )}
                   {group.resume_id && (
                     <button
@@ -197,12 +205,19 @@ export default function DashboardPage() {
                         {doc.doc_type === 'resume' ? 'Resume' : 'Cover Letter'}
                       </p>
                     </div>
-                    <a
-                      href={doc.doc_type === 'resume' ? `/api/resume/pdf?document_id=${doc.id}` : `/api/cover-letter/pdf?document_id=${doc.id}`}
-                      className="text-sm border rounded px-3 py-1.5 hover:border-blue-600 whitespace-nowrap"
-                    >
-                      Download PDF
-                    </a>
+                    {doc.doc_type === 'resume' ? (
+                      <PDFDownloadButton
+                        type="resume"
+                        resumeData={doc.content_json || {}}
+                        filename={`Resume_${((doc.content_json as { contact?: { name?: string } } | null)?.contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                      />
+                    ) : (
+                      <PDFDownloadButton
+                        type="cover-letter"
+                        coverLetterText={(doc.content_json as { cover_letter_text?: string } | null)?.cover_letter_text || ''}
+                        filename="Cover_Letter.pdf"
+                      />
+                    )}
                   </div>
                   <div className="mt-3 border rounded-lg p-3 bg-gray-50 text-xs text-gray-400">
                     Pre-flight audit unavailable for documents generated before
