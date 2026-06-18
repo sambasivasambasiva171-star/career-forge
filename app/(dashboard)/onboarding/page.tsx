@@ -6,6 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
 import { PREFLIGHT_CHECKLIST, JOB_MARKETS } from '@/lib/constants/preflight'
 
+const PREFLIGHT_SHOW_FOR: Record<string, Array<'IN' | 'GB' | 'GLOBAL'>> = {
+  right_to_work: ['GB', 'GLOBAL'],
+  requires_visa_sponsorship: ['GB', 'GLOBAL'],
+  holds_driving_license: ['GB'],
+  willing_to_relocate: ['IN', 'GB', 'GLOBAL'],
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [personaType, setPersonaType] = useState<'fresher' | 'experienced' | ''>('')
@@ -44,6 +51,14 @@ export default function OnboardingPage() {
   function toggleResponse(key: string, value: boolean) {
     setResponses((prev) => ({ ...prev, [key]: value }))
   }
+
+  useEffect(() => {
+    setResponses({})
+  }, [jobMarket])
+
+  const visibleChecklistItems = jobMarket
+    ? PREFLIGHT_CHECKLIST.filter((item) => PREFLIGHT_SHOW_FOR[item.key]?.includes(jobMarket))
+    : []
 
   async function handleContinue() {
     if (!personaType) {
@@ -139,32 +154,40 @@ export default function OnboardingPage() {
 
         <div>
           <h2 className="font-medium">Pre-Screening Checklist</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            These are often the first filters employers apply — wrong answers cause instant
-            auto-rejection. Your answers will be included in the CV&apos;s additional details section.
-          </p>
-          <div className="space-y-2 mt-3">
-            {PREFLIGHT_CHECKLIST.map((item) => (
-              <label key={item.key} className="flex items-start gap-3 border rounded p-3 cursor-pointer hover:border-blue-600 shadow-sm bg-white">
-                <input
-                  type="checkbox"
-                  checked={responses[item.key] || false}
-                  onChange={(e) => toggleResponse(item.key, e.target.checked)}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
+          {jobMarket ? (
+            <>
+              <p className="text-sm text-gray-500 mt-1">
+                These are often the first filters employers apply — wrong answers cause instant
+                auto-rejection. Your answers will be included in the CV&apos;s additional details section.
+              </p>
+              <div className="space-y-2 mt-3">
+                {visibleChecklistItems.map((item) => (
+                  <label key={item.key} className="flex items-start gap-3 border rounded p-3 cursor-pointer hover:border-blue-600 shadow-sm bg-white">
+                    <input
+                      type="checkbox"
+                      checked={responses[item.key] || false}
+                      onChange={(e) => toggleResponse(item.key, e.target.checked)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-3 text-xs text-yellow-800">
-            <strong>Why pre-screening matters:</strong> Over 75% of applications are rejected
-            before a human looks at the CV — either by ATS keyword filters or pre-screening
-            questions. Getting this right puts you in the top 25% before the CV is even read.
-          </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-3 text-xs text-yellow-800">
+                <strong>Why pre-screening matters:</strong> Over 75% of applications are rejected
+                before a human looks at the CV — either by ATS keyword filters or pre-screening
+                questions. Getting this right puts you in the top 25% before the CV is even read.
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">
+              Select your target market above to see relevant pre-screening questions.
+            </p>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
