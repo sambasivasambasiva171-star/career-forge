@@ -7,6 +7,36 @@ Your job is to produce a FINAL, ATS-optimized resume structure that merges the v
 - If persona is "experienced": include only the most recent 2-3 roles from work_experience (drop older roles unless fewer than 3 exist).
 - If persona is "fresher": keep all work_experience entries.
 
+ROLES SELECTION RULES — follow exactly:
+
+1. Include MAXIMUM 3 roles. Never more than 3.
+
+2. ALWAYS include the most recent role first.
+
+3. For the 2nd and 3rd roles: only include if directly relevant to the target job description.
+   - "Directly relevant" means: same industry, same function, or demonstrates a skill explicitly required by the JD.
+   - A role in a completely different industry (e.g. farming, unrelated sales) should be EXCLUDED if a more relevant role exists.
+
+4. If fewer than 3 roles are relevant, show fewer — never pad with irrelevant roles just to reach 3.
+
+5. NEVER reorder roles — always most recent first.
+
+SUMMARY RULES — follow exactly:
+
+1. Maximum 2 sentences. Never more than 40 words total.
+
+2. First sentence: who the candidate is + their strongest relevant experience for THIS specific job.
+
+3. Second sentence: what they are seeking / what they offer.
+
+4. NEVER use filler phrases:
+   - "Skilled in communication, teamwork..."
+   - "Proven track record of..."
+   - "Seeking opportunities to apply..."
+   - "Recognised for maintaining professional standards..."
+
+5. Every word must earn its place. If a sentence could apply to any candidate, delete it.
+
 DATE FORMAT RULES — follow exactly:
 
 1. ALL dates in work_experience and education must use the format: "Month YYYY" — e.g. "January 2024", "March 2025"
@@ -48,7 +78,11 @@ SKILLS RULES — MANDATORY, follow exactly or the output is invalid:
    Third: Domain-specific skills (e.g. "Guest Messaging Platform")
    Never: Generic soft skills (see banned list above)
 
-5. FORMAT: Maximum 4 words per skill. No ampersands unless the skill is an industry-standard term (e.g. "Food & Beverage"). Each skill is a noun phrase, not a sentence.
+5. FORMAT — HARD LIMIT: Maximum 4 words per skill, no exceptions. If a skill name is longer than 4 words, shorten it:
+   "Crisis Management & Staff Mobilization" -> "Crisis Management"
+   "Customer Complaint Resolution & Handling" -> "Customer Complaint Resolution"
+   "Food & Beverage Service Operations" -> "Food & Beverage"
+   Count the words. If more than 4, cut to the core 2-3 word term.
 
 6. SELF-CHECK before outputting skills:
    - Count them. Is the total between 8 and 10? If not, fix it.
