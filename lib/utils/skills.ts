@@ -13,6 +13,11 @@ const BANNED_SKILLS = new Set([
   // Vague filler
   'willingness to learn', 'eagerness to learn', 'positive attitude',
   'detail-oriented', 'results-driven', 'goal-oriented',
+  // Brand names — not candidate skills
+  'booking.com', 'bookingcom', 'expedia', 'tripadvisor',
+  'airbnb', 'oyo', 'oyo app', 'trivago', 'hotels.com',
+  'agoda', 'google', 'facebook', 'instagram', 'linkedin',
+  'microsoft', 'apple', 'amazon',
 ])
 
 const SYNONYM_GROUPS = [
