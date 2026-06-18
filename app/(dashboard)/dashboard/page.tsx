@@ -123,6 +123,32 @@ export default function DashboardPage() {
     window.location.reload()
   }
 
+  async function handleDeleteAll() {
+    if (!confirm(
+      'Delete ALL applications? This will permanently remove every ' +
+      'CV and cover letter you have generated. This cannot be undone.'
+    )) return
+
+    // Second confirmation for destructive action
+    if (!confirm('Are you sure? This action is permanent.')) return
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase
+      .from('generated_documents')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (error) {
+      alert('Failed to delete. Please try again.')
+      return
+    }
+
+    window.location.reload()
+  }
+
   if (loading) {
     return <div className="max-w-3xl mx-auto px-4 py-12 text-gray-500">Loading...</div>
   }
@@ -139,12 +165,22 @@ export default function DashboardPage() {
               Resumes and cover letters you&apos;ve generated, grouped by job description.
             </p>
           </div>
-          <button
-            onClick={() => router.push('/onboarding')}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium whitespace-nowrap"
-          >
-            + New Application
-          </button>
+          <div className="flex items-center gap-2">
+            {(groups.length > 0 || legacyDocs.length > 0) && (
+              <button
+                onClick={handleDeleteAll}
+                className="px-4 py-2 text-sm border border-red-300 text-red-500 rounded hover:bg-red-50 hover:border-red-500 transition-colors"
+              >
+                Delete All
+              </button>
+            )}
+            <button
+              onClick={() => router.push('/onboarding')}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium whitespace-nowrap"
+            >
+              + New Application
+            </button>
+          </div>
         </div>
 
         {groups.length === 0 ? (
