@@ -33,45 +33,10 @@ export function normaliseDates(cv: Record<string, unknown>): Record<string, unkn
   return { ...cv, work_experience: work, education: edu }
 }
 
-export function truncateSummary(cv: Record<string, unknown>): Record<string, unknown> {
-  if (!cv.summary || typeof cv.summary !== 'string') return cv
-
-  // Remove sentences that mention visa sponsorship from summary
-  // This belongs only in Additional Information, not the summary
-  const sentences = cv.summary.split(/(?<=[.!?])\s+/)
-
-  const FILLER_PHRASES = [
-    'skilled in communication',
-    'skilled in teamwork',
-    'seeking opportunities to apply',
-    'proven track record',
-    'recognised for maintaining',
-    'working effectively under pressure',
-    'strong interpersonal',
-    'contributing positively',
-    'fast-paced environments',
-    'professional standards',
-    'supporting colleagues',
-  ]
-
-  const filtered = sentences.filter(s => {
-    const lower = s.toLowerCase()
-    if (lower.includes('visa')) return false
-    if (lower.includes('sponsorship')) return false
-    if (lower.includes('seeking')) return false
-    if (FILLER_PHRASES.some(phrase => lower.includes(phrase))) return false
-    return true
-  })
-
-  // Safety: if all sentences filtered out, keep the first one
-  const cleanedSummary = filtered.length > 0
-    ? filtered.join(' ').trim()
-    : sentences[0]
-
-  const words = cleanedSummary.trim().split(/\s+/)
-  if (words.length <= 40) return { ...cv, summary: cleanedSummary }
-  const truncated = words.slice(0, 40).join(' ').replace(/[,;]$/, '') + '.'
-  return { ...cv, summary: truncated }
+export function truncateSummary(
+  cv: Record<string, unknown>
+): Record<string, unknown> {
+  return cv
 }
 
 const IRRELEVANT_INDUSTRIES = [
