@@ -1,3 +1,10 @@
+/**
+ * DEPRECATED: This route is no longer called by the review page.
+ * PDF generation moved client-side via usePDF hook in
+ * components/PDFDownloadButtonInner.tsx to fix Vercel serverless
+ * incompatibility with @react-pdf/renderer (React error #31).
+ * Safe to delete once dashboard PDF links are also migrated.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { renderToBuffer } from '@react-pdf/renderer'

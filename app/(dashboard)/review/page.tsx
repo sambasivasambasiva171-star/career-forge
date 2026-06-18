@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import StepProgress from '@/components/StepProgress'
 import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
+import { PDFDownloadButton } from '@/components/PDFDownloadButton'
 
 function isOngoingRole(endDate: string | null): boolean {
   const end = endDate?.toLowerCase() ?? ''
@@ -196,7 +197,6 @@ function ReviewPageContent() {
   const [validationSaved, setValidationSaved] = useState(false)
   const [generatingResume, setGeneratingResume] = useState(false)
   const [finalResume, setFinalResume] = useState<EditableResume | null>(null)
-  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [coverLetterDocId, setCoverLetterDocId] = useState<string | null>(null)
@@ -535,35 +535,6 @@ function ReviewPageContent() {
       setError('Network error. Please try again.')
     } finally {
       setGeneratingNetworking(false)
-    }
-  }
-
-  async function handleDownloadPdf() {
-    if (!finalResume) return
-    setDownloadingPdf(true)
-    try {
-      const res = await fetch('/api/resume/pdf-from-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume_data: finalResume }),
-      })
-      if (!res.ok) {
-        setError('Failed to generate PDF.')
-        return
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const cd = res.headers.get('Content-Disposition') || ''
-      const match = cd.match(/filename="([^"]+)"/)
-      a.download = match ? match[1] : 'resume.pdf'
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      setError('Network error generating PDF.')
-    } finally {
-      setDownloadingPdf(false)
     }
   }
 
@@ -1290,13 +1261,10 @@ function ReviewPageContent() {
                     <h3 className="font-semibold text-base">
                       {finalResume.document_title || 'Resume'} — Editable Preview
                     </h3>
-                    <button
-                      onClick={handleDownloadPdf}
-                      disabled={downloadingPdf}
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
-                    >
-                      {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
-                    </button>
+                    <PDFDownloadButton
+                      resumeData={finalResume}
+                      filename={`${finalResume.document_title === 'Curriculum Vitae' ? 'CV' : 'Resume'}_${finalResume.contact.name?.replace(/\s+/g, '_') || 'document'}.pdf`}
+                    />
                   </div>
 
                   {/* Contact */}
