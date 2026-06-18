@@ -199,7 +199,6 @@ function ReviewPageContent() {
   const [finalResume, setFinalResume] = useState<EditableResume | null>(null)
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
-  const [coverLetterDocId, setCoverLetterDocId] = useState<string | null>(null)
   const [cvDocumentId, setCvDocumentId] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
@@ -499,7 +498,6 @@ function ReviewPageContent() {
       }
 
       setCoverLetter(data.cover_letter_text)
-      setCoverLetterDocId(data.document_id)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -1499,22 +1497,8 @@ function ReviewPageContent() {
 
               {finalResume && (
                 <div>
-                  <button
-                    onClick={handleGenerateCoverLetter}
-                    disabled={generatingCoverLetter || !cvDocumentId}
-                    title={!cvDocumentId ? 'Generate your CV first' : undefined}
-                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generatingCoverLetter ? 'Generating cover letter...' : 'Generate cover letter (optional)'}
-                  </button>
-
                   {coverLetter && (
                     <div className="space-y-2 mt-3">
-                      <PDFDownloadButton
-                        type="cover-letter"
-                        coverLetterText={coverLetter}
-                        filename={`Cover_Letter_${finalResume?.contact?.name?.replace(/\s+/g, '_') || 'document'}.pdf`}
-                      />
                       <div className="bg-gray-50 border rounded p-4 text-sm whitespace-pre-wrap">
                         {coverLetter}
                       </div>
