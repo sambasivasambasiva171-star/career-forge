@@ -19,6 +19,7 @@ export interface PDFDownloadButtonProps {
   resumeData?: Record<string, unknown>
   coverLetterText?: string
   filename: string
+  label?: string
 }
 
 export function PDFDownloadButton(props: PDFDownloadButtonProps) {

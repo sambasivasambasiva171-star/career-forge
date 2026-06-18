@@ -105,6 +105,24 @@ export default function DashboardPage() {
     load()
   }, [router])
 
+  async function handleDeleteApplication(documentIds: string[]) {
+    if (!confirm('Delete this application? This cannot be undone.')) return
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('generated_documents')
+      .delete()
+      .in('id', documentIds)
+
+    if (error) {
+      alert('Failed to delete. Please try again.')
+      return
+    }
+
+    // Refresh the page to reflect deletion
+    window.location.reload()
+  }
+
   if (loading) {
     return <div className="max-w-3xl mx-auto px-4 py-12 text-gray-500">Loading...</div>
   }
@@ -143,9 +161,17 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {groups.map((group) => (
               <div key={group.jd_id} className="border rounded p-4 space-y-2">
-                <p className="text-xs text-gray-400">
-                  {new Date(group.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                </p>
+                <div className="flex items-start justify-between">
+                  <p className="text-xs text-gray-400">
+                    {new Date(group.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                  <button
+                    onClick={() => handleDeleteApplication([group.resume_doc_id, group.cover_letter_doc_id].filter((id): id is string => Boolean(id)))}
+                    className="text-xs text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                </div>
                 <p className="text-sm text-gray-700">
                   {group.jd_snippet}{group.jd_snippet.length === 120 ? '...' : ''}
                 </p>
@@ -155,6 +181,7 @@ export default function DashboardPage() {
                       type="resume"
                       resumeData={group.resume_content_json}
                       filename={`Resume_${((group.resume_content_json as { contact?: { name?: string } }).contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                      label="Download Resume PDF"
                     />
                   )}
                   {group.cover_letter_doc_id && group.cover_letter_text && (
@@ -162,6 +189,7 @@ export default function DashboardPage() {
                       type="cover-letter"
                       coverLetterText={group.cover_letter_text}
                       filename={`Cover_Letter_${((group.resume_content_json as { contact?: { name?: string } } | null)?.contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                      label="Download Cover Letter PDF"
                     />
                   )}
                   {group.resume_id && (
@@ -196,6 +224,14 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {legacyDocs.map((doc) => (
                 <div key={doc.id} className="border rounded p-3">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleDeleteApplication([doc.id])}
+                      className="text-xs text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs text-gray-400">
@@ -210,12 +246,14 @@ export default function DashboardPage() {
                         type="resume"
                         resumeData={doc.content_json || {}}
                         filename={`Resume_${((doc.content_json as { contact?: { name?: string } } | null)?.contact?.name || '').replace(/\s+/g, '_') || 'document'}.pdf`}
+                        label="Download Resume PDF"
                       />
                     ) : (
                       <PDFDownloadButton
                         type="cover-letter"
                         coverLetterText={(doc.content_json as { cover_letter_text?: string } | null)?.cover_letter_text || ''}
                         filename="Cover_Letter.pdf"
+                        label="Download Cover Letter PDF"
                       />
                     )}
                   </div>
