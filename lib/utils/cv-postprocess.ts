@@ -35,11 +35,39 @@ export function normaliseDates(cv: Record<string, unknown>): Record<string, unkn
 
 export function truncateSummary(cv: Record<string, unknown>): Record<string, unknown> {
   if (!cv.summary || typeof cv.summary !== 'string') return cv
-  const words = cv.summary.trim().split(/\s+/)
-  if (words.length <= 40) return cv
+
+  // Remove sentences that mention visa sponsorship from summary
+  // This belongs only in Additional Information, not the summary
+  const sentences = cv.summary.split(/(?<=[.!?])\s+/)
+  const filtered = sentences.filter(s =>
+    !s.toLowerCase().includes('visa') &&
+    !s.toLowerCase().includes('sponsorship') &&
+    !s.toLowerCase().includes('seeking') &&
+    !s.toLowerCase().includes('seeking a')
+  )
+  const cleanedSummary = filtered.join(' ').trim() || cv.summary
+
+  const words = cleanedSummary.trim().split(/\s+/)
+  if (words.length <= 40) return { ...cv, summary: cleanedSummary }
   const truncated = words.slice(0, 40).join(' ').replace(/[,;]$/, '') + '.'
   return { ...cv, summary: truncated }
 }
+
+const IRRELEVANT_INDUSTRIES = [
+  'farm', 'farmer', 'agriculture', 'automotive', 'automobile',
+  'car dealer', 'vehicle', 'manufacturing', 'factory',
+  'construction', 'warehouse', 'logistics', 'driving',
+  'security guard', 'cleaning', 'labourer', 'laborer',
+]
+
+const RELEVANT_INDUSTRIES = [
+  'hotel', 'hospitality', 'restaurant', 'cafe', 'bar',
+  'guest', 'customer service', 'retail', 'reception',
+  'front desk', 'host', 'waiter', 'waitress', 'steward',
+  'housekeeper', 'concierge', 'events', 'catering',
+  'food', 'beverage', 'kitchen', 'chef', 'cook',
+  'sales', 'support', 'admin', 'office', 'operations',
+]
 
 export function removeIrrelevantRoles(
   cv: Record<string, unknown>,
@@ -50,28 +78,42 @@ export function removeIrrelevantRoles(
 
   const jdLower = jdText.toLowerCase()
 
-  const scored = work.map(role => {
-    const text = [
+  const isRelevant = (role: Record<string, unknown>): boolean => {
+    const roleText = [
       role.title,
       role.company,
-      ...((role.responsibilities as string[]) || []),
     ].join(' ').toLowerCase()
 
-    const words = text.split(/\s+/)
-    const score = words.filter(w => w.length > 4 && jdLower.includes(w)).length
-    return { role, score }
-  })
+    // Explicitly irrelevant industries — exclude
+    if (IRRELEVANT_INDUSTRIES.some(term => roleText.includes(term))) {
+      return false
+    }
 
-  // Always keep the most recent role (index 0) regardless of score
-  // Sort remaining by score, keep top 2
-  const [first, ...rest] = scored
-  const topRest = rest
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 2)
+    // Explicitly relevant — include
+    if (RELEVANT_INDUSTRIES.some(term => roleText.includes(term))) {
+      return true
+    }
 
-  const kept = [first, ...topRest]
-    .sort((a, b) => scored.indexOf(a) - scored.indexOf(b))
-    .map(s => s.role)
+    // JD title match — include if role title words appear in JD
+    const titleWords = ((role.title as string) || '')
+      .toLowerCase().split(/\s+/).filter(w => w.length > 3)
+    if (titleWords.some(w => jdLower.includes(w))) {
+      return true
+    }
 
-  return { ...cv, work_experience: kept }
+    // Default: exclude if unclear
+    return false
+  }
+
+  // Always keep most recent role
+  const [first, ...rest] = work
+  const relevant = rest.filter(isRelevant).slice(0, 2)
+
+  // If fewer than 2 relevant found, pad with next most recent
+  // to ensure at least 2 roles always show
+  if (relevant.length < 1) {
+    return { ...cv, work_experience: [first, ...rest.slice(0, 1)] }
+  }
+
+  return { ...cv, work_experience: [first, ...relevant] }
 }

@@ -72,7 +72,14 @@ export function filterSkills(
   return capped.map(skill => {
     const titleCased = skill.trim().replace(/\b\w/g, c => c.toUpperCase())
     const words = titleCased.split(/\s+/)
-    return words.length > 4 ? words.slice(0, 4).join(' ') : titleCased
+    if (words.length <= 4) return titleCased
+    // Cut at 2 words for ampersand-joined terms to avoid
+    // truncating mid-phrase (e.g. "Crisis Management & Staff" →
+    // "Crisis Management")
+    if (titleCased.includes('&')) {
+      return words.slice(0, 2).join(' ')
+    }
+    return words.slice(0, 4).join(' ')
   })
 }
 
