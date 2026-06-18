@@ -53,11 +53,29 @@ ADDITIONAL CONFIRMED FACTS:
 - The "certifications" array in your output may ONLY contain genuine credentials present in the ORIGINAL resume data's certifications array (e.g. courses, certificates, professional qualifications). NEVER put visa/relocation/right-to-work/driving-licence declarations here.
 - The "pre_screening_details" array in your output holds short entries derived from "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" below, using this mapping:
   - "Candidate holds a valid driving license." -> "Full Driving License"
-  - "Candidate has confirmed right to work in the target country." -> "Eligible to Work in [Country, inferred from JD/location context]"
+  - "Candidate has confirmed right to work in the target country." -> apply the PRE-SCREENING DETAILS RULES below
   - "Candidate is willing to relocate for this role." -> "Open to Relocation"
   - "Candidate is eligible for or interested in visa sponsorship for this role." -> "Open to Visa Sponsorship"
 - If "ADDITIONAL CONFIRMED FACTS ABOUT THE CANDIDATE" is "None", return "pre_screening_details": [].
 - NEVER invent, assume, or infer any certification, license, status, or qualification not explicitly present in the original data or confirmed facts.
+
+PRE-SCREENING DETAILS RULES — follow exactly:
+
+1. NEVER use placeholder text, bracketed variables, or inferred values. Every item must be a concrete, declarative statement.
+
+2. For right-to-work / eligibility:
+   - If the source CV explicitly states eligibility (e.g. "Eligible to Work in UK", "British Citizen", "ILR holder"): Use that exact statement verbatim
+   - If language_variant is "uk_english" and no explicit statement exists: Use: "Right to Work in the UK: Please enquire"
+   - If language_variant is "us_english": Omit this item entirely unless explicitly stated in source CV
+
+3. NEVER write:
+   - "Eligible to Work in [Country]"
+   - "Eligible to Work in [inferred location]"
+   - "Eligible to Work in [Country, inferred from JD/location context]"
+   - Any item containing square brackets of any kind
+   - Any item containing "inferred", "assumed", or "context"
+
+4. If you cannot determine a concrete value — omit the item. A missing item is better than a placeholder item.
 
 OTHER RULES:
 - Remove any personal details unrelated to employability (hobbies like "watching TV", marital status, etc.) if present.
