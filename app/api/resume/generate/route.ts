@@ -7,6 +7,8 @@ import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location
 import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
 import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
 import { normaliseDates, truncateSummary, removeIrrelevantRoles } from '@/lib/utils/cv-postprocess'
+import { factCheckResume } from '@/lib/utils/fact-check'
+import { computeMatchScore } from '@/lib/utils/keyword-score'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -153,10 +155,26 @@ export async function POST(request: NextRequest) {
     finalResume = normaliseDates(finalResume as Record<string, unknown>) as typeof finalResume
     finalResume = truncateSummary(finalResume as Record<string, unknown>) as typeof finalResume
     finalResume = removeIrrelevantRoles(finalResume as Record<string, unknown>, jd.raw_text) as typeof finalResume
+
+    // Anti-hallucination fact gate: strip any role, education entry, or
+    // certification not grounded in the candidate's actual source data.
+    const factCheck = factCheckResume(
+      finalResume as Record<string, unknown>,
+      resume.parsed_json,
+      validatedAdditions,
+      preflight_facts
+    )
+    if (factCheck.removed.length > 0) {
+      console.warn('[FACT GATE] Removed fabricated content:', factCheck.removed)
+    }
+    finalResume = factCheck.cv
   } catch (err) {
     console.error('Resume generation AI error:', err)
     return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })
   }
+
+  // ATS keyword match score — the same number an ATS sorts candidates by.
+  const matchScore = computeMatchScore(finalResume, jd.raw_text)
 
   const { data: insertedDoc, error: insertError } = await supabase
     .from('generated_documents')
@@ -165,7 +183,7 @@ export async function POST(request: NextRequest) {
       resume_id,
       jd_id,
       doc_type: 'resume',
-      content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant, questionnaire_skipped },
+      content_json: { ...finalResume, document_title: deriveDocumentTitle(languageVariant), language_variant: languageVariant, questionnaire_skipped, match_score: matchScore.score, match_missing_keywords: matchScore.missing },
     })
     .select('id')
     .single()
@@ -175,5 +193,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save generated resume.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, resume: finalResume, document_id: insertedDoc.id })
+  return NextResponse.json({ success: true, resume: finalResume, document_id: insertedDoc.id, match_score: matchScore.score, match_missing_keywords: matchScore.missing })
 }

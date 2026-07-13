@@ -117,6 +117,7 @@ function ReviewPageContent() {
   }, [resumeId, jdId])
 
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
+  const [matchScore, setMatchScore] = useState<{ score: number; missing: string[] } | null>(null)
   const [gapAnalysis, setGapAnalysis] = useState<{
     matched_skills: Array<{ skill: string; evidence: string }>
     missing_skills: Array<{ skill: string; jd_context: string }>
@@ -402,6 +403,9 @@ function ReviewPageContent() {
 
       const resume = data.resume as EditableResume
       setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
+      if (typeof data.match_score === 'number') {
+        setMatchScore({ score: data.match_score, missing: data.match_missing_keywords || [] })
+      }
       setGlobalStep(4)
       if (data.document_id) {
         setCvDocumentId(data.document_id)
@@ -1252,6 +1256,20 @@ function ReviewPageContent() {
               >
                 {generatingResume ? 'Generating resume...' : 'Generate optimized resume'}
               </button>
+
+              {finalResume && matchScore && (
+                <div className={`border rounded-lg p-4 ${matchScore.score >= 75 ? 'bg-green-50 border-green-300' : matchScore.score >= 50 ? 'bg-yellow-50 border-yellow-300' : 'bg-red-50 border-red-300'}`}>
+                  <p className="font-semibold text-sm">
+                    ATS keyword match: {matchScore.score}%
+                    {matchScore.score >= 75 ? ' — strong match' : matchScore.score >= 50 ? ' — moderate match' : ' — weak match'}
+                  </p>
+                  {matchScore.missing.length > 0 && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Missing JD keywords: {matchScore.missing.join(', ')}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {finalResume && (
                 <div className="border rounded-lg p-5 space-y-6 bg-white">
