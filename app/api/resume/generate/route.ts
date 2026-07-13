@@ -6,7 +6,7 @@ import { generateResumeWithFactsSchema } from '@/lib/validation/schemas'
 import { deriveLanguageVariant, deriveDocumentTitle } from '@/lib/utils/location'
 import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
 import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
-import { normaliseDates, truncateSummary, removeIrrelevantRoles } from '@/lib/utils/cv-postprocess'
+import { normaliseDates, truncateSummary, removeIrrelevantRoles, capBullets } from '@/lib/utils/cv-postprocess'
 import { factCheckResume } from '@/lib/utils/fact-check'
 import { computeMatchScore } from '@/lib/utils/keyword-score'
 
@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
     finalResume = normaliseDates(finalResume as Record<string, unknown>) as typeof finalResume
     finalResume = truncateSummary(finalResume as Record<string, unknown>) as typeof finalResume
     finalResume = removeIrrelevantRoles(finalResume as Record<string, unknown>, jd.raw_text) as typeof finalResume
+    finalResume = capBullets(finalResume as Record<string, unknown>) as typeof finalResume
 
     // Anti-hallucination fact gate: strip any role, education entry, or
     // certification not grounded in the candidate's actual source data.
