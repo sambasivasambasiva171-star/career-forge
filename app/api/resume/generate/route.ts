@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { resume_id, jd_id, preflight_facts, questionnaire_skipped } = parsed.data
+  const { resume_id, jd_id, preflight_facts, questionnaire_skipped, regenerate } = parsed.data
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -80,6 +80,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Determinism guarantee, part 1: a resume+JD pair has ONE tailored CV.
+  // Unless the user explicitly asks to regenerate, return the saved variant
+  // instead of rolling the dice again.
+  if (!regenerate) {
+    const { data: existing } = await supabase
+      .from('generated_documents')
+      .select('id, content_json')
+      .eq('user_id', user.id)
+      .eq('resume_id', resume_id)
+      .eq('jd_id', jd_id)
+      .eq('doc_type', 'resume')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        resume: existing.content_json,
+        document_id: existing.id,
+        cached: true,
+      })
+    }
+  }
+
   const validatedAdditions = Array.isArray(resume.validated_additions) ? resume.validated_additions : []
   /**
    * job_market enum values:
@@ -100,7 +125,8 @@ export async function POST(request: NextRequest) {
     const aiResponse = await getCompletion({
       systemPrompt: RESUME_GENERATE_SYSTEM_PROMPT,
       userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type, languageVariant, preflight_facts),
-      temperature: 0.2,
+      temperature: 0,
+      seed: 42,
       maxTokens: 3072,
     })
 

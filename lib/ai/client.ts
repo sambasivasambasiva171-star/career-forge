@@ -17,11 +17,14 @@ export async function getCompletion({
   userPrompt,
   temperature = 0.1,
   maxTokens = 2048,
+  seed,
 }: {
   systemPrompt: string
   userPrompt: string
   temperature?: number
   maxTokens?: number
+  /** Fixed seed for deterministic output — same input always yields the same CV. */
+  seed?: number
 }): Promise<string> {
   const NIM_MODEL = process.env.NVIDIA_NIM_MODEL ?? 'meta/llama-3.1-70b-instruct'
   const startTime = Date.now()
@@ -33,6 +36,7 @@ export async function getCompletion({
     ],
     temperature,
     max_tokens: maxTokens,
+    ...(seed !== undefined ? { seed } : {}),
   })
   const duration = Date.now() - startTime
   console.log(`[AI TIMING] Model: ${NIM_MODEL}, Duration: ${duration}ms`)
