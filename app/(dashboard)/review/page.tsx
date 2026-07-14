@@ -6,6 +6,7 @@ import StepProgress from '@/components/StepProgress'
 import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 import { PDFDownloadButton } from '@/components/PDFDownloadButton'
+import { SixSecondScanPreview } from '@/components/SixSecondScanPreview'
 import type { QuotaStatus } from '@/lib/types/quota'
 
 function isOngoingRole(endDate: string | null): boolean {
@@ -120,6 +121,7 @@ function ReviewPageContent() {
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
   const [matchScore, setMatchScore] = useState<{ score: number; missing: string[] } | null>(null)
   const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null)
+  const [showScanPreview, setShowScanPreview] = useState<boolean>(false)
   const [gapAnalysis, setGapAnalysis] = useState<{
     matched_skills: Array<{ skill: string; evidence: string }>
     missing_skills: Array<{ skill: string; jd_context: string }>
@@ -1298,6 +1300,24 @@ function ReviewPageContent() {
               )}
 
               {finalResume && (
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-base">
+                    {showScanPreview ? '6-Second Scan Preview' : 'Full CV — Editable Preview'}
+                  </h3>
+                  <button
+                    onClick={() => setShowScanPreview(!showScanPreview)}
+                    className="text-sm px-3 py-1 border rounded hover:bg-gray-50"
+                  >
+                    {showScanPreview ? 'Edit Full CV' : 'Preview 6-Second Scan'}
+                  </button>
+                </div>
+              )}
+
+              {finalResume && showScanPreview && (
+                <SixSecondScanPreview resume={finalResume as unknown as Record<string, unknown>} />
+              )}
+
+              {finalResume && !showScanPreview && (
                 <div className="border rounded-lg p-5 space-y-6 bg-white">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-base">

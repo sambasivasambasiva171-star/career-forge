@@ -54,3 +54,38 @@ Manual test:
 5. Fourth attempt → 402 Payment Required
 
 Vercel logs show: `[QUOTA] User {id} exhausted free tier quota (3/3)`
+
+## Six-Second Scan Simulation
+
+**The Problem**: Hiring managers spend ~6 seconds initially scanning a CV. They see your name,
+summary, and the title + top bullets of your most recent role. Everything else is typically
+invisible until they actively scroll or decide to read more.
+
+**The Solution**: Career-forge enforces and visualizes this constraint.
+
+### How It Works
+
+1. **Enforcement (Code Level)**:
+   - Summary capped at 40 words
+   - Most recent role: max 5 bullets
+   - Older roles: max 3 bullets each
+   - These limits are applied during CV generation
+
+2. **Visualization (UI Level)**:
+   - "Preview 6-Second Scan" button on the review page
+   - Shows: name + summary + recent role title + top 2–3 bullets
+   - Grays out: education, older roles, skills, certifications
+   - Insight banner: explains why this matters
+
+3. **Outcome**:
+   - You see exactly what hiring managers see in the first 6 seconds
+   - Reinforces the importance of a strong summary and top accomplishments
+   - Guides you to rewrite with impact
+
+### Example: Before vs. After Scan
+
+**Full CV** (what hiring manager *can* see if they scroll): 9 sections, education, 3 roles, 20+ skills, certifications
+
+**6-Second Scan** (what hiring manager *does* see): Name, summary (40 words), recent role title, top 3 bullets
+
+The scan preview is read-only. To edit, click "Edit Full CV" to return to the full editor.
