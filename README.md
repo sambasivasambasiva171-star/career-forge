@@ -20,3 +20,37 @@ ai powered cv with networking suggestions
    - Verify Vercel logs: [FACT GATE] messages show what was stripped (or nothing if clean)
 
 Run these before each release to production.
+
+## Freemium Model
+
+### Quota Limits
+
+- **Free Tier**: 3 CV generations per calendar month
+- **Premium Tier**: Unlimited CV generations
+- **Quotas reset**: First day of each calendar month (UTC)
+
+### How It Works
+
+1. User generates CV → `checkQuota()` verifies usage count (only for genuinely
+   new generations — re-fetching an already-cached resume+JD pair is free)
+2. Free tier at limit → returns 402 Payment Required
+3. UI shows quota status: "2 of 3 CVs remaining this month"
+4. When exhausted, "Upgrade to premium" button appears
+5. Paid users see no quota warnings
+
+### Database Schema
+
+- `profiles.subscription_tier` (free/premium/enterprise, defaults to free)
+- `generated_documents` filtered by `doc_type='resume'` and `created_at >= month_start`
+- Quota reset is date-based: automatic on calendar month boundary, no cron needed
+
+### Testing
+
+Manual test:
+1. Log in as free-tier user
+2. Generate CV → see "2 of 3 remaining"
+3. Generate CV → see "1 of 3 remaining"
+4. Generate CV → see "0 of 3 remaining, upgrade prompt"
+5. Fourth attempt → 402 Payment Required
+
+Vercel logs show: `[QUOTA] User {id} exhausted free tier quota (3/3)`

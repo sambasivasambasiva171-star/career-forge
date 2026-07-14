@@ -9,6 +9,7 @@ import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
 import { normaliseDates, truncateSummary, removeIrrelevantRoles, capBullets } from '@/lib/utils/cv-postprocess'
 import { factCheckResume } from '@/lib/utils/fact-check'
 import { computeMatchScore, normalizeCVForKeywordMatch } from '@/lib/utils/keyword-score'
+import { checkQuota } from '@/lib/utils/quota'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('persona_type, location, job_market')
+    .select('persona_type, location, job_market, subscription_tier')
     .eq('id', user.id)
     .single()
 
@@ -105,6 +106,27 @@ export async function POST(request: NextRequest) {
         cached: true,
       })
     }
+  }
+
+  // Quota check: free tier blocked after 3 CVs per month. Runs only when
+  // we're about to generate a genuinely new CV (past the cache-hit check
+  // above), so re-fetching an already-generated resume never counts
+  // against — or is blocked by — the quota.
+  const quota = await checkQuota(supabase, user.id, (profile.subscription_tier ?? 'free') as 'free' | 'premium' | 'enterprise')
+  if (!quota.canGenerate) {
+    console.log(`[QUOTA] User ${user.id} exhausted free tier quota (${quota.used}/${quota.limit})`)
+    return NextResponse.json(
+      {
+        error: 'Free tier quota exhausted. Upgrade to continue.',
+        quota: {
+          used: quota.used,
+          limit: quota.limit,
+          remaining: quota.remaining,
+          resetDate: quota.resetDate.toISOString(),
+        },
+      },
+      { status: 402 } // 402 Payment Required
+    )
   }
 
   const validatedAdditions = Array.isArray(resume.validated_additions) ? resume.validated_additions : []
@@ -195,5 +217,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save generated resume.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, resume: finalResume, document_id: insertedDoc.id, match_score: matchScore.score, match_missing_keywords: matchScore.missing })
+  return NextResponse.json({
+    success: true,
+    resume: finalResume,
+    document_id: insertedDoc.id,
+    match_score: matchScore.score,
+    match_missing_keywords: matchScore.missing,
+    quota: {
+      used: quota.used + 1, // this generation counted, but hasn't been re-queried
+      // Infinity does not survive JSON serialization (becomes null) — send
+      // null explicitly for unlimited (paid) tiers so the client can check
+      // `limit === null` rather than a value that never round-trips.
+      limit: quota.limit === Infinity ? null : quota.limit,
+      remaining: quota.limit === Infinity ? null : Math.max(0, quota.limit - (quota.used + 1)),
+      resetDate: quota.resetDate.toISOString(),
+    },
+  })
 }

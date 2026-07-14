@@ -6,6 +6,7 @@ import StepProgress from '@/components/StepProgress'
 import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 import { PDFDownloadButton } from '@/components/PDFDownloadButton'
+import type { QuotaStatus } from '@/lib/types/quota'
 
 function isOngoingRole(endDate: string | null): boolean {
   const end = endDate?.toLowerCase() ?? ''
@@ -118,6 +119,7 @@ function ReviewPageContent() {
 
   const [preflightResponses, setPreflightResponses] = useState<Record<string, boolean>>({})
   const [matchScore, setMatchScore] = useState<{ score: number; missing: string[] } | null>(null)
+  const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null)
   const [gapAnalysis, setGapAnalysis] = useState<{
     matched_skills: Array<{ skill: string; evidence: string }>
     missing_skills: Array<{ skill: string; jd_context: string }>
@@ -396,6 +398,9 @@ function ReviewPageContent() {
           setTimeout(() => handleGenerateResume(retryCount + 1), 3000)
           return
         }
+        if (res.status === 402 && data.quota) {
+          setQuotaStatus(data.quota)
+        }
         setError(data.error || 'Something went wrong.')
         setGeneratingResume(false)
         return
@@ -405,6 +410,10 @@ function ReviewPageContent() {
       setFinalResume({ ...resume, pre_screening_details: resume.pre_screening_details || [] })
       if (typeof data.match_score === 'number') {
         setMatchScore({ score: data.match_score, missing: data.match_missing_keywords || [] })
+      }
+      if (data.quota) {
+        setQuotaStatus(data.quota)
+        console.log(`Quota: ${data.quota.used}/${data.quota.limit ?? '∞'}, ${data.quota.remaining ?? '∞'} remaining`)
       }
       setGlobalStep(4)
       if (data.document_id) {
@@ -1249,12 +1258,29 @@ function ReviewPageContent() {
             <div className="space-y-4">
               <h2 className="font-medium text-lg">Final Output</h2>
 
+              {quotaStatus && quotaStatus.limit !== null && (
+                <div className={`border rounded-lg p-4 mb-4 ${quotaStatus.remaining === 0 ? 'bg-red-50 border-red-300' : quotaStatus.remaining === 1 ? 'bg-yellow-50 border-yellow-300' : 'bg-blue-50 border-blue-300'}`}>
+                  <p className="font-semibold text-sm">
+                    Free tier: {quotaStatus.used} of {quotaStatus.limit} CVs used this month
+                  </p>
+                  {quotaStatus.remaining && quotaStatus.remaining > 0 ? (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {quotaStatus.remaining} CV{quotaStatus.remaining === 1 ? '' : 's'} remaining. Resets {new Date(quotaStatus.resetDate).toLocaleDateString()}.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-600 mt-1 font-semibold">
+                      Quota exhausted. Upgrade to premium to continue generating CVs.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={() => handleGenerateResume()}
-                disabled={generatingResume}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50 mr-2"
+                disabled={generatingResume || quotaStatus?.remaining === 0}
+                className={`bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50 mr-2 ${quotaStatus?.remaining === 0 ? 'cursor-not-allowed' : ''}`}
               >
-                {generatingResume ? 'Generating resume...' : 'Generate optimized resume'}
+                {quotaStatus?.remaining === 0 ? 'Upgrade to generate' : generatingResume ? 'Generating resume...' : 'Generate optimized resume'}
               </button>
 
               {finalResume && matchScore && (

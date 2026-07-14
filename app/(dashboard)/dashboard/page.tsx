@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import StepProgress from '@/components/StepProgress'
 import { PreflightPanel } from '@/components/PreflightPanel'
 import { PDFDownloadButton } from '@/components/PDFDownloadButton'
+import { countUsageThisMonth } from '@/lib/utils/quota'
 
 interface DocGroup {
   jd_id: string
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [jobMarket, setJobMarket] = useState<string | null>(null)
   const [location, setLocation] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null)
+  const [quotaUsed, setQuotaUsed] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -46,12 +49,17 @@ export default function DashboardPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('job_market, location')
+        .select('job_market, location, subscription_tier')
         .eq('id', user.id)
         .single()
 
       setJobMarket(profile?.job_market ?? null)
       setLocation(profile?.location ?? null)
+      setSubscriptionTier(profile?.subscription_tier ?? 'free')
+
+      if ((profile?.subscription_tier ?? 'free') === 'free') {
+        setQuotaUsed(await countUsageThisMonth(supabase, user.id))
+      }
 
       const { data: docs } = await supabase
         .from('generated_documents')
@@ -182,6 +190,26 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {subscriptionTier === 'free' && (
+          <div className="border rounded-lg p-4 bg-blue-50 border-blue-300">
+            <p className="font-semibold text-sm">Free Tier Status</p>
+            <div className="mt-2 bg-gray-200 rounded h-2">
+              <div
+                className="bg-blue-600 h-2 rounded"
+                style={{ width: `${Math.min(100, (quotaUsed / 3) * 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              {quotaUsed} of 3 CVs used this month. Resets on the 1st.
+            </p>
+            {quotaUsed >= 3 && (
+              <button onClick={() => router.push('/account')} className="text-xs text-blue-600 hover:underline mt-2 font-semibold">
+                Upgrade to premium →
+              </button>
+            )}
+          </div>
+        )}
 
         {groups.length === 0 ? (
           <div className="border rounded p-8 text-center text-gray-500 text-sm">
