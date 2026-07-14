@@ -8,7 +8,7 @@ import { applyUKSpellingDeep, isUKMarket } from '@/lib/utils/spelling'
 import { filterSkills, extractJDKeywords } from '@/lib/utils/skills'
 import { normaliseDates, truncateSummary, removeIrrelevantRoles, capBullets } from '@/lib/utils/cv-postprocess'
 import { factCheckResume } from '@/lib/utils/fact-check'
-import { computeMatchScore } from '@/lib/utils/keyword-score'
+import { computeMatchScore, normalizeCVForKeywordMatch } from '@/lib/utils/keyword-score'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       systemPrompt: RESUME_GENERATE_SYSTEM_PROMPT,
       userPrompt: buildResumeGenerateUserPrompt(resume.parsed_json, validatedAdditions, jd.raw_text, profile.persona_type, languageVariant, preflight_facts),
       temperature: 0,
-      seed: 42,
+      seed: parseInt(process.env.RESUME_GENERATION_SEED ?? '42', 10),
       maxTokens: 3072,
     })
 
@@ -175,7 +175,8 @@ export async function POST(request: NextRequest) {
   }
 
   // ATS keyword match score — the same number an ATS sorts candidates by.
-  const matchScore = computeMatchScore(finalResume, jd.raw_text)
+  const cvNormalizedText = normalizeCVForKeywordMatch(finalResume)
+  const matchScore = computeMatchScore(cvNormalizedText, jd.raw_text)
 
   const { data: insertedDoc, error: insertError } = await supabase
     .from('generated_documents')

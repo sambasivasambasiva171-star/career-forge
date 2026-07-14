@@ -86,17 +86,18 @@ export interface MatchScore {
   missing: string[]
 }
 
-/** Score the final CV JSON against JD keywords the way an ATS would. */
-export function computeMatchScore(cv: unknown, jdText: string): MatchScore {
+/**
+ * Score the final CV against JD keywords the way an ATS would.
+ * Accepts pre-normalized CV text to avoid redundant stringification.
+ */
+export function computeMatchScore(cvNormalizedText: string, jdText: string): MatchScore {
   const keywords = extractKeywordsGeneric(jdText)
   if (keywords.length === 0) return { score: 0, matched: [], missing: [] }
-
-  const cvText = JSON.stringify(cv ?? {}).toLowerCase().replace(/[^a-z0-9+#./ -]/g, ' ').replace(/\s+/g, ' ')
 
   const matched: string[] = []
   const missing: string[] = []
   for (const k of keywords) {
-    if (cvText.includes(k)) matched.push(k)
+    if (cvNormalizedText.includes(k)) matched.push(k)
     else missing.push(k)
   }
 
@@ -105,4 +106,16 @@ export function computeMatchScore(cv: unknown, jdText: string): MatchScore {
     matched,
     missing,
   }
+}
+
+/**
+ * Normalize CV text for keyword matching.
+ * Call once per CV, then pass result to computeMatchScore() to avoid
+ * redundant stringification on every score computation.
+ */
+export function normalizeCVForKeywordMatch(cv: unknown): string {
+  return JSON.stringify(cv ?? {})
+    .toLowerCase()
+    .replace(/[^a-z0-9+#./ -]/g, ' ')
+    .replace(/\s+/g, ' ')
 }
