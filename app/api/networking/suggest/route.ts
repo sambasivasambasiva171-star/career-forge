@@ -8,24 +8,37 @@ interface NetworkingResult {
   suggestions: Array<{ category: 'linkedin' | 'alumni' | 'placement_cell' | 'referral'; suggestion_text: string }>
 }
 
+/**
+ * POST /api/networking/suggest
+ *
+ * Generate networking outreach suggestions (LinkedIn, alumni, placement
+ * cell, referral) tailored to the user's latest generated resume and a JD.
+ *
+ * @body { jd_id: string }
+ * @returns 200 { success: true, suggestions: Array<{ category, suggestion_text }> }
+ * @error 400 INVALID_INPUT — bad body, no persona set, or no resume generated yet
+ * @error 401 UNAUTHORIZED
+ * @error 404 NOT_FOUND — job description doesn't exist or isn't owned by the caller
+ * @error 502 AI_ERROR
+ */
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const parsed = generateNetworkingSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid input', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { jd_id } = parsed.data
@@ -37,7 +50,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (profileError || !profile?.persona_type) {
-    return NextResponse.json({ error: 'User persona not set.' }, { status: 400 })
+    return NextResponse.json({ error: 'User persona not set.', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { data: jd, error: jdError } = await supabase
@@ -46,12 +59,8 @@ export async function POST(request: NextRequest) {
     .eq('id', jd_id)
     .single()
 
-  if (jdError || !jd) {
-    return NextResponse.json({ error: 'Job description not found' }, { status: 404 })
-  }
-
-  if (jd.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (jdError || !jd || jd.user_id !== user.id) {
+    return NextResponse.json({ error: 'Job description not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   const { data: latestResume, error: docError } = await supabase
@@ -64,7 +73,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (docError || !latestResume) {
-    return NextResponse.json({ error: 'No generated resume found. Please generate your resume first.' }, { status: 400 })
+    return NextResponse.json({ error: 'No generated resume found. Please generate your resume first.', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   let result: NetworkingResult
@@ -79,12 +88,12 @@ export async function POST(request: NextRequest) {
     result = parseJsonResponse<NetworkingResult>(aiResponse)
   } catch (err) {
     console.error('Networking suggestions AI error:', err)
-    return NextResponse.json({ error: 'Failed to generate networking suggestions. Please try again.' }, { status: 502 })
+    return NextResponse.json({ error: 'Failed to generate networking suggestions. Please try again.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   if (!Array.isArray(result.suggestions)) {
     console.error('Unexpected networking response shape:', result)
-    return NextResponse.json({ error: 'Networking suggestions returned an unexpected format.' }, { status: 502 })
+    return NextResponse.json({ error: 'Networking suggestions returned an unexpected format.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   const rows = result.suggestions.map((s) => ({

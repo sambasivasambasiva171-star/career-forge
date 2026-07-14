@@ -8,14 +8,14 @@ export async function GET(request: NextRequest) {
   const documentId = searchParams.get('document_id')
 
   if (!documentId) {
-    return NextResponse.json({ error: 'document_id is required' }, { status: 400 })
+    return NextResponse.json({ error: 'document_id is required', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   const { data: resumeDoc, error: docError } = await supabase
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (docError || !resumeDoc) {
-    return NextResponse.json({ error: 'No generated resume found.' }, { status: 404 })
+    return NextResponse.json({ error: 'No generated resume found.', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   try {
@@ -42,6 +42,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (err) {
     console.error('PDF rendering error:', err)
-    return NextResponse.json({ error: 'Failed to generate PDF.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate PDF.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 }

@@ -11,24 +11,40 @@ import { factCheckResume } from '@/lib/utils/fact-check'
 import { computeMatchScore, normalizeCVForKeywordMatch } from '@/lib/utils/keyword-score'
 import { checkQuota } from '@/lib/utils/quota'
 
+/**
+ * POST /api/resume/generate
+ *
+ * Generate a tailored resume by matching it against a job description.
+ * Returns a cached variant if one already exists for this resume+JD pair
+ * (unless `regenerate` is true), enforces free-tier quota, calls the AI,
+ * runs the anti-hallucination fact gate, and computes an ATS match score.
+ *
+ * @body { resume_id: string, jd_id: string, preflight_facts?: object, questionnaire_skipped?: boolean, regenerate?: boolean }
+ * @returns 200 { success: true, resume: object, document_id: string, match_score: number, match_missing_keywords: string[], quota: object, cached?: true }
+ * @error 400 INVALID_INPUT / RESUME_NOT_PARSED
+ * @error 401 UNAUTHORIZED
+ * @error 402 QUOTA_EXHAUSTED — free tier hit its monthly CV limit
+ * @error 404 NOT_FOUND — resume or job description doesn't exist or isn't owned by the caller
+ * @error 502 AI_ERROR — NVIDIA NIM generation call failed or returned bad shape
+ */
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const parsed = generateResumeWithFactsSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid input', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { resume_id, jd_id, preflight_facts, questionnaire_skipped, regenerate } = parsed.data
@@ -40,7 +56,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (profileError || !profile?.persona_type) {
-    return NextResponse.json({ error: 'User persona not set.' }, { status: 400 })
+    return NextResponse.json({ error: 'User persona not set.', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { data: resume, error: resumeError } = await supabase
@@ -49,12 +65,10 @@ export async function POST(request: NextRequest) {
     .eq('id', resume_id)
     .single()
 
-  if (resumeError || !resume) {
-    return NextResponse.json({ error: 'Resume not found' }, { status: 404 })
-  }
-
-  if (resume.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Ownership mismatch is folded into the same 404 as "doesn't exist" so a
+  // caller probing another user's resume ID can't distinguish the two cases.
+  if (resumeError || !resume || resume.user_id !== user.id) {
+    return NextResponse.json({ error: 'Resume not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   const parsedJson = resume.parsed_json as Record<string, unknown>
@@ -75,12 +89,8 @@ export async function POST(request: NextRequest) {
     .eq('id', jd_id)
     .single()
 
-  if (jdError || !jd) {
-    return NextResponse.json({ error: 'Job description not found' }, { status: 404 })
-  }
-
-  if (jd.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (jdError || !jd || jd.user_id !== user.id) {
+    return NextResponse.json({ error: 'Job description not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   // Determinism guarantee, part 1: a resume+JD pair has ONE tailored CV.
@@ -118,6 +128,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Free tier quota exhausted. Upgrade to continue.',
+        code: 'QUOTA_EXHAUSTED',
         quota: {
           used: quota.used,
           limit: quota.limit,
@@ -193,7 +204,7 @@ export async function POST(request: NextRequest) {
     finalResume = factCheck.cv
   } catch (err) {
     console.error('Resume generation AI error:', err)
-    return NextResponse.json({ error: 'Failed to generate final resume. Please try again.' }, { status: 502 })
+    return NextResponse.json({ error: 'Failed to generate final resume. Please try again.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   // ATS keyword match score — the same number an ATS sorts candidates by.
@@ -214,7 +225,7 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !insertedDoc) {
     console.error('Failed to save generated resume:', insertError)
-    return NextResponse.json({ error: 'Failed to save generated resume.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save generated resume.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 
   return NextResponse.json({

@@ -7,7 +7,7 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -15,7 +15,7 @@ export async function POST() {
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error('Missing Supabase service role configuration')
-    return NextResponse.json({ error: 'Account deletion is not configured.' }, { status: 500 })
+    return NextResponse.json({ error: 'Account deletion is not configured.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -26,7 +26,7 @@ export async function POST() {
 
   if (error) {
     console.error('Failed to delete user:', error)
-    return NextResponse.json({ error: 'Failed to delete account.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete account.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

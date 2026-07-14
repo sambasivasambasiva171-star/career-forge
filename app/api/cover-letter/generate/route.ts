@@ -10,24 +10,37 @@ interface CoverLetterResult {
   cover_letter_text: string
 }
 
+/**
+ * POST /api/cover-letter/generate
+ *
+ * Generate a cover letter tailored to a job description, grounded in an
+ * already-generated resume variant.
+ *
+ * @body { resume_id: string, jd_id: string, cv_document_id: string }
+ * @returns 200 { success: true, cover_letter_text: string, document_id: string }
+ * @error 400 INVALID_INPUT
+ * @error 401 UNAUTHORIZED
+ * @error 404 NOT_FOUND — job description or source resume doesn't exist or isn't owned by the caller
+ * @error 502 AI_ERROR
+ */
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const parsed = generateResumeSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid input', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { resume_id, jd_id, cv_document_id } = parsed.data
@@ -38,12 +51,8 @@ export async function POST(request: NextRequest) {
     .eq('id', jd_id)
     .single()
 
-  if (jdError || !jd) {
-    return NextResponse.json({ error: 'Job description not found' }, { status: 404 })
-  }
-
-  if (jd.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (jdError || !jd || jd.user_id !== user.id) {
+    return NextResponse.json({ error: 'Job description not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   const { data: resumeDoc, error: docError } = await supabase
@@ -55,7 +64,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (docError || !resumeDoc) {
-    return NextResponse.json({ error: 'Source resume not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Source resume not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   const { data: profile } = await supabase
@@ -78,12 +87,12 @@ export async function POST(request: NextRequest) {
     result = parseJsonResponse<CoverLetterResult>(aiResponse)
   } catch (err) {
     console.error('Cover letter AI error:', err)
-    return NextResponse.json({ error: 'Failed to generate cover letter. Please try again.' }, { status: 502 })
+    return NextResponse.json({ error: 'Failed to generate cover letter. Please try again.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   if (typeof result.cover_letter_text !== 'string') {
     console.error('Unexpected cover letter response shape:', result)
-    return NextResponse.json({ error: 'Cover letter generation returned an unexpected format.' }, { status: 502 })
+    return NextResponse.json({ error: 'Cover letter generation returned an unexpected format.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   const rawCoverLetter = result.cover_letter_text
@@ -105,7 +114,7 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !insertedDoc) {
     console.error('Failed to save cover letter:', insertError)
-    return NextResponse.json({ error: 'Failed to save cover letter.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save cover letter.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, cover_letter_text: coverLetterText, document_id: insertedDoc.id })

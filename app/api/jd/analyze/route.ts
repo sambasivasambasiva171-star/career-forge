@@ -10,24 +10,37 @@ interface GapAnalysisResult {
   partial_skills: Array<{ skill: string; resume_evidence: string; jd_requirement: string }>
 }
 
+/**
+ * POST /api/jd/analyze
+ *
+ * Run a gap analysis between a resume and a job description: which JD
+ * skills are matched, partially matched, or missing.
+ *
+ * @body { resume_id: string, jd_id: string }
+ * @returns 200 { success: true, analysis: { matched_skills, missing_skills, partial_skills } }
+ * @error 400 INVALID_INPUT
+ * @error 401 UNAUTHORIZED
+ * @error 404 NOT_FOUND — resume or job description doesn't exist or isn't owned by the caller
+ * @error 502 AI_ERROR
+ */
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const parsed = analyzeGapSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid input', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const { resume_id, jd_id } = parsed.data
@@ -38,17 +51,13 @@ export async function POST(request: NextRequest) {
     .eq('id', resume_id)
     .single()
 
-  if (resumeError || !resume) {
-    return NextResponse.json({ error: 'Resume not found' }, { status: 404 })
-  }
-
-  if (resume.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (resumeError || !resume || resume.user_id !== user.id) {
+    return NextResponse.json({ error: 'Resume not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   if (!resume.parsed_json) {
     return NextResponse.json(
-      { error: 'Resume has not been parsed yet. Please parse it first.' },
+      { error: 'Resume has not been parsed yet. Please parse it first.', code: 'INVALID_INPUT' },
       { status: 400 }
     )
   }
@@ -59,12 +68,8 @@ export async function POST(request: NextRequest) {
     .eq('id', jd_id)
     .single()
 
-  if (jdError || !jd) {
-    return NextResponse.json({ error: 'Job description not found' }, { status: 404 })
-  }
-
-  if (jd.user_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (jdError || !jd || jd.user_id !== user.id) {
+    return NextResponse.json({ error: 'Job description not found', code: 'NOT_FOUND' }, { status: 404 })
   }
 
   let gapResult: GapAnalysisResult
@@ -79,7 +84,7 @@ export async function POST(request: NextRequest) {
     gapResult = parseJsonResponse<GapAnalysisResult>(aiResponse)
   } catch (err) {
     console.error('JD gap analysis AI error:', err)
-    return NextResponse.json({ error: 'Failed to analyze job description. Please try again.' }, { status: 502 })
+    return NextResponse.json({ error: 'Failed to analyze job description. Please try again.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   if (
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
     !Array.isArray(gapResult.partial_skills)
   ) {
     console.error('Unexpected gap analysis response shape:', gapResult)
-    return NextResponse.json({ error: 'Gap analysis returned an unexpected format.' }, { status: 502 })
+    return NextResponse.json({ error: 'Gap analysis returned an unexpected format.', code: 'AI_ERROR' }, { status: 502 })
   }
 
   const { error: jdUpdateError } = await supabase
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Failed to insert skill gaps:', insertError)
-      return NextResponse.json({ error: 'Failed to save skill gap analysis.' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to save skill gap analysis.', code: 'INTERNAL_ERROR' }, { status: 500 })
     }
   }
 

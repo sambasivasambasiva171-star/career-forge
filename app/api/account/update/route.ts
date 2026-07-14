@@ -7,21 +7,21 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const parsed = updateProfileSchema.safeParse(body)
   const parsedStep1 = updateProfileStep1Schema.safeParse(body)
 
   if (!parsed.success && !parsedStep1.success) {
-    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid input', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
   const updateData = parsedStep1.success ? parsedStep1.data : parsed.data!
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error('Failed to update profile:', error)
-    return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update profile.', code: 'INTERNAL_ERROR' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

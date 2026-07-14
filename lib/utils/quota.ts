@@ -99,6 +99,31 @@ export async function checkQuota(
 }
 
 /**
+ * Count resume uploads (parse requests) a user has submitted in the last
+ * rolling hour. Used to rate-limit free-tier uploads independently of the
+ * IP-based Redis limiter in middleware.ts, which caps by IP, not by user.
+ */
+export async function countUserUploadsThisHour(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<number> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+
+  const { count, error } = await supabase
+    .from('resumes')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', oneHourAgo.toISOString())
+
+  if (error) {
+    console.error('Failed to count uploads:', error)
+    return 0 // Fail open: an upload should not be blocked by a counting error
+  }
+
+  return count ?? 0
+}
+
+/**
  * Reset all free-tier usage counts at the start of each month.
  *
  * No-op by design: quota is date-based (countUsageThisMonth filters on
