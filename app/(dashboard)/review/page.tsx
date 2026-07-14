@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { PREFLIGHT_CHECKLIST } from '@/lib/constants/preflight'
 import { PDFDownloadButton } from '@/components/PDFDownloadButton'
 import { SixSecondScanPreview } from '@/components/SixSecondScanPreview'
+import { useStrategicSkillGap } from '@/lib/hooks/useStrategicSkillGap'
+import SkillGapAnalysisStrategic from '@/components/SkillGapAnalysisStrategic'
 import type { QuotaStatus } from '@/lib/types/quota'
 
 function isOngoingRole(endDate: string | null): boolean {
@@ -210,6 +212,11 @@ function ReviewPageContent() {
   const [currentStep, setCurrentStep] = useState(0)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [globalStep, setGlobalStep] = useState(3)
+
+  const { data: skillGapData, loading: skillGapLoading, error: skillGapError } = useStrategicSkillGap(
+    resumeId,
+    jdId
+  )
 
   async function handleGenerateQuestions() {
     if (!resumeId || !jdId) {
@@ -1296,6 +1303,30 @@ function ReviewPageContent() {
                       Missing JD keywords: {matchScore.missing.join(', ')}
                     </p>
                   )}
+                </div>
+              )}
+
+              {skillGapData && !skillGapError && (
+                <div className="mt-8">
+                  <SkillGapAnalysisStrategic
+                    readiness={skillGapData.readiness}
+                    hiringProbability={skillGapData.hiring_probability}
+                    competitiveAdvantages={skillGapData.competitive_advantages}
+                    strategicNarrative={skillGapData.strategic_narrative}
+                    jobTitle="Target Role"
+                  />
+                </div>
+              )}
+
+              {skillGapLoading && (
+                <div className="mt-8 p-4 bg-gray-100 rounded text-center">
+                  <p className="text-sm text-gray-600">Analyzing your fit...</p>
+                </div>
+              )}
+
+              {skillGapError && (
+                <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded">
+                  <p className="text-sm text-red-700">Could not load skill analysis. Please try again.</p>
                 </div>
               )}
 
