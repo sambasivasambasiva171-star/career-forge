@@ -58,12 +58,27 @@ export function computeReadinessScore(
     results[key].matched += cat.skills.filter(s => s.matched).length
   })
 
+  // Only categories that actually have skills (total > 0) count toward the
+  // overall score. Previously an empty category (e.g. no baseline skills
+  // ever extracted — extractSkillsFromText's vocabulary doesn't produce any
+  // baseline-tier bucket names) contributed 0% at full weight, permanently
+  // dragging the score down for something that was never evaluated rather
+  // than something the candidate lacks. Weights are renormalized over the
+  // active (non-empty) categories so they still sum to 100%.
+  const totalActiveWeight = Object.entries(weights).reduce((sum, [category, weight]) => {
+    const key = category === 'core_competency' ? 'core_competencies' : category
+    return results[key].total > 0 ? sum + weight : sum
+  }, 0)
+
   Object.entries(weights).forEach(([category, weight]) => {
     const key = category === 'core_competency' ? 'core_competencies' : category
     const { matched, total } = results[key]
     const pct = total > 0 ? (matched / total) * 100 : 0
     results[key].pct = Math.round(pct)
-    overallScore += (pct / 100) * weight * 100
+
+    if (total > 0 && totalActiveWeight > 0) {
+      overallScore += (pct / 100) * (weight / totalActiveWeight) * 100
+    }
   })
 
   const jobSpecificTrainable = matchedByCategory.find(

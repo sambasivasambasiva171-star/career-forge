@@ -46,6 +46,24 @@ describe('Readiness Score', () => {
     expect(score.time_to_full_competency).toBe(7)
   })
 
+  it('does not let an empty category drag down the overall score', () => {
+    // Regression test: extractSkillsFromText's vocabulary never produces a
+    // baseline-tier bucket name, so `baseline` is routinely 0/0. Before this
+    // fix, an empty category still counted at full weight with pct=0,
+    // capping a perfect match at 95% (100 - baseline's 5% weight) even
+    // though nothing in the baseline tier was ever actually evaluated.
+    const mockCategories = [
+      { category: 'core_competency' as const, skills: [{ name: 'a', matched: true, trainable: false }] },
+      { category: 'transferable' as const, skills: [{ name: 'b', matched: true, trainable: false }] },
+      { category: 'job_specific' as const, skills: [{ name: 'c', matched: true, trainable: false }] },
+      // no 'baseline' entry at all — total must be excluded, not scored as 0%
+    ]
+
+    const score = computeReadinessScore(mockCategories)
+    expect(score.baseline.total).toBe(0)
+    expect(score.overall).toBe(100)
+  })
+
   it('estimates hiring probability for strong candidates', () => {
     const strongReadiness = {
       overall: 85,
