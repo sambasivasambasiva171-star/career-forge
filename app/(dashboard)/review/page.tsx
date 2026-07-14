@@ -9,6 +9,7 @@ import { PDFDownloadButton } from '@/components/PDFDownloadButton'
 import { SixSecondScanPreview } from '@/components/SixSecondScanPreview'
 import { useStrategicSkillGap } from '@/lib/hooks/useStrategicSkillGap'
 import SkillGapAnalysisStrategic from '@/components/SkillGapAnalysisStrategic'
+import type { InterviewGuidanceData } from '@/lib/pdf/InterviewGuidanceDocument'
 import type { QuotaStatus } from '@/lib/types/quota'
 
 function isOngoingRole(endDate: string | null): boolean {
@@ -209,6 +210,9 @@ function ReviewPageContent() {
   const [cvDocumentId, setCvDocumentId] = useState<string | null>(null)
   const [generatingNetworking, setGeneratingNetworking] = useState(false)
   const [networkingSuggestions, setNetworkingSuggestions] = useState<Array<{ category: string; suggestion_text: string }>>([])
+  const [generatingGuidance, setGeneratingGuidance] = useState(false)
+  const [guidanceData, setGuidanceData] = useState<InterviewGuidanceData | null>(null)
+  const [guidanceError, setGuidanceError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [globalStep, setGlobalStep] = useState(3)
@@ -555,6 +559,37 @@ function ReviewPageContent() {
       setError('Network error. Please try again.')
     } finally {
       setGeneratingNetworking(false)
+    }
+  }
+
+  async function handleGenerateGuidance() {
+    if (!resumeId || !jdId || !cvDocumentId) {
+      setGuidanceError('Generate your CV first — interview guidance explains what changed in it.')
+      return
+    }
+
+    setGeneratingGuidance(true)
+    setGuidanceError(null)
+
+    try {
+      const res = await fetch('/api/resume/interview-guidance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_id: resumeId, jd_id: jdId, cv_document_id: cvDocumentId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setGuidanceError(data.error || 'Something went wrong.')
+        return
+      }
+
+      setGuidanceData(data)
+    } catch {
+      setGuidanceError('Network error. Please try again.')
+    } finally {
+      setGeneratingGuidance(false)
     }
   }
 
@@ -1509,6 +1544,36 @@ function ReviewPageContent() {
                           <p>{s.suggestion_text}</p>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {finalResume && (
+                <div className="mt-3">
+                  <button
+                    onClick={handleGenerateGuidance}
+                    disabled={generatingGuidance}
+                    className="border rounded px-4 py-2 text-sm hover:border-blue-600 disabled:opacity-50"
+                  >
+                    {generatingGuidance ? 'Analysing your CV changes...' : '📋 Get interview guidance'}
+                  </button>
+
+                  {guidanceError && (
+                    <p className="text-sm text-red-600 mt-2">{guidanceError}</p>
+                  )}
+
+                  {guidanceData && (
+                    <div className="mt-3 border rounded-lg p-4 bg-white space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Your interview guidance is ready — it explains what changed in your CV, why, and how to talk about it.
+                      </p>
+                      <PDFDownloadButton
+                        type="interview-guidance"
+                        guidanceData={guidanceData}
+                        filename={`Interview_Guidance_${new Date().toISOString().split('T')[0]}.pdf`}
+                        label="Download Interview Guidance PDF"
+                      />
                     </div>
                   )}
                 </div>
