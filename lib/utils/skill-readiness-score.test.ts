@@ -64,6 +64,26 @@ describe('Readiness Score', () => {
     expect(score.overall).toBe(100)
   })
 
+  it('scores 70–85% when gaps are mostly trainable, not ~40%', () => {
+    // Regression test for the bug: "all gaps trainable" is the normal case
+    // (employer-provided training) and previously scored as low as a
+    // candidate with genuine, non-trainable core gaps.
+    const mostlyTrainableReadiness = {
+      overall: 50,
+      core_competencies: { matched: 3, total: 5, pct: 55 },
+      transferable: { matched: 2, total: 4, pct: 50 },
+      job_specific: { matched: 0, total: 4, pct: 0, trainable_count: 4 },
+      baseline: { matched: 0, total: 0, pct: 0 },
+      ready_immediately: 50,
+      trainable_gaps: 85,
+      time_to_full_competency: 25,
+    }
+
+    const prob = estimateHiringProbability(mostlyTrainableReadiness)
+    expect(prob.probability).toBeGreaterThanOrEqual(70)
+    expect(prob.probability).toBeLessThanOrEqual(85)
+  })
+
   it('estimates hiring probability for strong candidates', () => {
     const strongReadiness = {
       overall: 85,

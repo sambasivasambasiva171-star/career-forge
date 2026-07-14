@@ -110,52 +110,68 @@ export function computeReadinessScore(
   }
 }
 
+/**
+ * Bugfix (2026-07): the previous formula treated "gaps exist" as uniformly
+ * bad, so a candidate whose only gaps were normal employer-trained
+ * job-specific skills (the common, expected case) still scored as low as a
+ * candidate with genuine core-competency gaps. Rebalanced so trainable
+ * gaps count as a mild positive signal (this is what "trainable" means)
+ * rather than a penalty, starting from a 50% baseline instead of 0%.
+ */
 export function estimateHiringProbability(readiness: ReadinessScore): HiringProbability {
   const coreMatch = readiness.core_competencies.pct
-  const trainableGapsCount = readiness.trainable_gaps
 
   const reasoning: string[] = []
-  let probability = 0
+  let probability = 50 // baseline: an average, unassessed candidate
 
   if (coreMatch >= 90) {
-    probability += 40
+    probability += 25
     reasoning.push('Core competencies excellent (>90%)')
   } else if (coreMatch >= 75) {
-    probability += 35
+    probability += 20
     reasoning.push('Core competencies strong (75–90%)')
   } else if (coreMatch >= 60) {
-    probability += 25
+    probability += 15
     reasoning.push('Core competencies adequate (60–75%)')
-  } else {
+  } else if (coreMatch >= 40) {
     probability += 10
-    reasoning.push('Core competencies below threshold (<60%)')
+    reasoning.push('Core competencies moderate (40–60%)')
+  } else {
+    probability += 5
+    reasoning.push('Core competencies below threshold (<40%)')
   }
 
-  if (trainableGapsCount <= 2) {
-    probability += 35
-    reasoning.push('Few trainable gaps (1–2)')
-  } else if (trainableGapsCount <= 5) {
-    probability += 25
-    reasoning.push('Moderate trainable gaps (3–5)')
-  } else {
+  // Trainable gaps are the normal, expected case — employer-provided
+  // training, not a red flag — so a HIGH trainable-gap share is rewarded,
+  // not penalized (inverse of the old formula).
+  if (readiness.trainable_gaps >= 80) {
+    probability += 15
+    reasoning.push('All gaps are trainable (employer trains)')
+  } else if (readiness.trainable_gaps >= 50) {
     probability += 10
-    reasoning.push('Many trainable gaps (>5)')
+    reasoning.push('Most gaps are trainable')
+  } else if (readiness.trainable_gaps >= 20) {
+    probability += 5
+    reasoning.push('Some trainable gaps mixed with core gaps')
   }
 
   if (readiness.time_to_full_competency <= 7) {
-    probability += 20
+    probability += 10
     reasoning.push('Fast ramp-up time (≤1 week)')
   } else if (readiness.time_to_full_competency <= 14) {
-    probability += 15
-    reasoning.push('Moderate ramp-up time (1–2 weeks)')
-  } else {
-    probability += 10
-    reasoning.push('Longer ramp-up time (>2 weeks)')
+    probability += 8
+    reasoning.push('Moderate ramp-up (1–2 weeks)')
+  } else if (readiness.time_to_full_competency <= 21) {
+    probability += 5
+    reasoning.push('Extended ramp-up (2–3 weeks)')
   }
 
-  if (readiness.overall >= 75) {
+  if (readiness.overall >= 80) {
     probability += 10
-    reasoning.push('Overall strong match (≥75%)')
+    reasoning.push('Overall strong match (≥80%)')
+  } else if (readiness.overall >= 60) {
+    probability += 5
+    reasoning.push('Overall adequate match (60–80%)')
   }
 
   let confidence: 'high' | 'medium' | 'low' = 'low'
@@ -166,7 +182,7 @@ export function estimateHiringProbability(readiness: ReadinessScore): HiringProb
   }
 
   return {
-    probability: Math.min(probability, 100),
+    probability: Math.min(Math.max(probability, 10), 100),
     confidence,
     reasoning,
   }
