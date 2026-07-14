@@ -15,9 +15,10 @@ const PDFDownloadButtonInner = dynamic(
 )
 
 export interface PDFDownloadButtonProps {
-  type: 'resume' | 'cover-letter'
+  type: 'resume' | 'cover-letter' | 'interview-guidance'
   resumeData?: Record<string, unknown>
   coverLetterText?: string
+  guidanceData?: import('@/lib/pdf/InterviewGuidanceDocument').InterviewGuidanceData
   filename: string
   label?: string
 }
