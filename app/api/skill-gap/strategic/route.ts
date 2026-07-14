@@ -99,9 +99,26 @@ export async function POST(request: NextRequest) {
       ([category, skills]) => ({ category, skills })
     )
 
+    console.log('[SKILL_GAP_DEBUG]', {
+      jd_skills_extracted: jdSkills.length,
+      jd_skills: jdSkills,
+      cv_skills_extracted: cvSkills.length,
+      matched_by_category: matchedByCategory.map(cat => ({
+        category: cat.category,
+        skill_count: cat.skills.length,
+      })),
+    })
+
     const readiness = computeReadinessScore(matchedByCategory)
     const hiringProbability = estimateHiringProbability(readiness)
     const advantages = detectCompetitiveAdvantages(cvText, jdText)
+
+    console.log('[SKILL_GAP_RESULT]', {
+      overall: readiness.overall,
+      core: readiness.core_competencies.pct,
+      trainable_gaps: readiness.trainable_gaps,
+      hiring_probability: hiringProbability.probability,
+    })
     const narrative = await generateStrategicNarrative(readiness, hiringProbability, advantages)
 
     return NextResponse.json({
