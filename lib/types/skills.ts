@@ -1,9 +1,20 @@
+import type { ReadinessScore, HiringProbability } from '@/lib/utils/skill-readiness-score'
+import type { CompetitiveAdvantage } from '@/lib/utils/competitive-advantages'
+
 export interface SkillMatch {
   name: string
   category: 'core_competency' | 'transferable' | 'job_specific' | 'baseline'
   matched: boolean
   trainable?: boolean
   timeToCompetency?: number
+}
+
+export interface StrategicSkillGapResponse {
+  success: boolean
+  readiness: ReadinessScore
+  hiring_probability: HiringProbability
+  competitive_advantages: CompetitiveAdvantage[]
+  strategic_narrative: string
 }
 
 export interface SkillGapAnalysis {
