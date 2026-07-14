@@ -4,8 +4,14 @@ let _nimClient: OpenAI | null = null
 
 function getNimClient(): OpenAI {
   if (!_nimClient) {
+    const apiKey = process.env.NVIDIA_NIM_API_KEY
+    if (!apiKey) {
+      throw new Error(
+        'NVIDIA_NIM_API_KEY is required. Set it in your environment variables or .env.local'
+      )
+    }
     _nimClient = new OpenAI({
-      apiKey: process.env.NVIDIA_NIM_API_KEY ?? 'placeholder-key',
+      apiKey,
       baseURL: process.env.NVIDIA_NIM_BASE_URL ?? 'https://integrate.api.nvidia.com/v1',
     })
   }
