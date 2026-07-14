@@ -11,6 +11,7 @@ export function categorizeSkill(skill: string, jobContext: string): SkillMatch['
     'adaptability',
     'resilience',
     'working under pressure',
+    'pressure',
     'stress management',
     'emotional intelligence',
     'conflict resolution',

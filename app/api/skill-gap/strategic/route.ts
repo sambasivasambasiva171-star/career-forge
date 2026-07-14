@@ -183,23 +183,79 @@ function similarityScore(skill1: string, skill2: string): number {
   return intersection.size / union.size
 }
 
+/**
+ * Bugfix (2026-07): the original 15-keyword literal-match list missed
+ * qualified candidates whose CV/JD used a synonym instead of the exact
+ * phrase ("collaborate" vs "teamwork", "supervise" vs "leadership"). This
+ * groups synonyms under the same category buckets categorizeSkill()
+ * already recognizes by exact name — see the comment there for why the
+ * bucket *names* below (not the individual synonyms) are what actually
+ * gets categorized downstream.
+ */
 function extractSkillsFromText(text: string): string[] {
-  const skillKeywords = [
-    'communication',
-    'problem solving',
-    'teamwork',
-    'customer service',
-    'leadership',
-    'time management',
-    'adaptability',
-    'working under pressure',
-    'conflict resolution',
-    'crisis management',
-    'reliability',
-    'professionalism',
-    'staff mobilization',
-    'training',
-    'learning',
-  ]
-  return skillKeywords.filter(skill => text.toLowerCase().includes(skill))
+  const textLower = text.toLowerCase()
+
+  const skillCategories: Record<string, string[]> = {
+    communication: [
+      'communication', 'communicate', 'interpersonal', 'verbal', 'writing',
+      'written', 'presentation', 'present', 'speaking', 'speak',
+    ],
+    'problem solving': [
+      'problem solving', 'problem-solving', 'solve', 'analytical', 'analysis',
+      'critical thinking', 'critical', 'strategic thinking', 'logical',
+    ],
+    teamwork: [
+      'teamwork', 'team', 'collaboration', 'collaborative', 'collaborate',
+      'working together', 'group', 'cooperative', 'cooperation',
+    ],
+    'customer service': [
+      'customer service', 'customer-facing', 'customer', 'client', 'guest',
+      'user', 'support', 'service', 'interaction',
+    ],
+    leadership: [
+      'leadership', 'lead', 'leader', 'management', 'manager', 'manage',
+      'supervise', 'supervision', 'delegation', 'delegate',
+    ],
+    'time management': [
+      'time management', 'deadline', 'priorit', 'organize',
+      'organization', 'efficiency', 'efficient', 'scheduling',
+    ],
+    adaptability: [
+      'adaptability', 'adaptable', 'flexible', 'flexibility', 'fast learner',
+      'learning ability', 'learning', 'resilient', 'resilience',
+    ],
+    pressure: [
+      'working under pressure', 'under pressure', 'fast-paced', 'fast paced',
+      'high pressure', 'high-pressure', 'stress management', 'multitask',
+    ],
+    'conflict resolution': [
+      'conflict resolution', 'conflict-resolution', 'negotiate', 'negotiation',
+      'mediate', 'mediation', 'dispute', 'resolve disputes',
+    ],
+    'crisis management': [
+      'crisis management', 'crisis-management', 'emergency', 'handle crisis',
+      'crisis response', 'respond to crisis',
+    ],
+    reliability: [
+      'reliability', 'reliable', 'dependable', 'dependability', 'responsible',
+      'responsibility', 'trustworthy', 'trust', 'punctual', 'attendance',
+    ],
+    professionalism: [
+      'professionalism', 'professional', 'ethical', 'integrity', 'honest',
+      'honesty', 'confidentiality', 'compliance',
+    ],
+    training: [
+      'training', 'train', 'onboarding', 'mentor', 'mentoring', 'coach',
+      'coaching', 'educate', 'teach', 'teaching', 'instruction',
+    ],
+  }
+
+  const matched = new Set<string>()
+  Object.entries(skillCategories).forEach(([bucketName, keywords]) => {
+    if (keywords.some(kw => textLower.includes(kw))) {
+      matched.add(bucketName)
+    }
+  })
+
+  return Array.from(matched)
 }
