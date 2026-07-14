@@ -11,6 +11,7 @@ const AI_ROUTES = [
   '/api/cover-letter/generate',
   '/api/networking/suggest',
   '/api/skill-gap/strategic',
+  '/api/resume/interview-guidance',
 ]
 
 const AUTH_ROUTES = ['/login', '/signup', '/forgot-password']
