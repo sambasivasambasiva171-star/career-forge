@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { getCompletion } from '@/lib/ai/client'
 import { analyzeGapSchema } from '@/lib/validation/schemas'
 import {
   computeReadinessScore,
   estimateHiringProbability,
   type SkillCategory,
+  type ReadinessScore,
+  type HiringProbability,
 } from '@/lib/utils/skill-readiness-score'
-import { detectCompetitiveAdvantages } from '@/lib/utils/competitive-advantages'
+import { detectCompetitiveAdvantages, type CompetitiveAdvantage } from '@/lib/utils/competitive-advantages'
 import { categorizeSkill, isTrainable, estimateTimeToCompetency } from '@/lib/utils/skill-categories'
 
 /**
  * POST /api/skill-gap/strategic
  *
- * Rule-based (non-AI) companion to /api/jd/analyze: categorizes JD skills
- * by how trainable they are (core competency / transferable / job-specific
- * / baseline), computes a weighted readiness score and a hiring-probability
- * estimate, and surfaces competitive advantages found in the resume text.
+ * Categorizes JD skills by how trainable they are (core competency /
+ * transferable / job-specific / baseline) using rule-based heuristics,
+ * computes a weighted readiness score and a hiring-probability estimate,
+ * surfaces competitive advantages found in the resume text, and asks the
+ * AI for a short confidence-building narrative summarizing all of the
+ * above. The narrative call degrades gracefully — if it fails, a canned
+ * narrative built from the same numbers is returned instead of failing
+ * the request, since the numeric analysis is this endpoint's core value
+ * and shouldn't be blocked by a supplementary AI-written paragraph.
  *
  * @body { resume_id: string, jd_id: string }
- * @returns 200 { success: true, readiness, hiring_probability, competitive_advantages }
+ * @returns 200 { success: true, readiness, hiring_probability, competitive_advantages, strategic_narrative }
  * @error 400 INVALID_INPUT
  * @error 401 UNAUTHORIZED
  * @error 404 NOT_FOUND — resume or job description doesn't exist or isn't owned by the caller
@@ -94,16 +102,72 @@ export async function POST(request: NextRequest) {
     const readiness = computeReadinessScore(matchedByCategory)
     const hiringProbability = estimateHiringProbability(readiness)
     const advantages = detectCompetitiveAdvantages(cvText, jdText)
+    const narrative = await generateStrategicNarrative(readiness, hiringProbability, advantages)
 
     return NextResponse.json({
       success: true,
       readiness,
       hiring_probability: hiringProbability,
       competitive_advantages: advantages,
+      strategic_narrative: narrative,
     })
   } catch (error) {
     console.error('[SKILL_GAP_STRATEGIC]', error)
     return NextResponse.json({ error: 'Failed to run strategic skill gap analysis.', code: 'INTERNAL_ERROR' }, { status: 500 })
+  }
+}
+
+/**
+ * Ask the AI for a short narrative reframing the numeric analysis above
+ * in encouraging-but-honest terms. Uses this app's NVIDIA NIM client
+ * (lib/ai/client.ts) — not a second AI provider — so it shares the same
+ * API key, logging, and cost tracking as every other AI feature here.
+ */
+async function generateStrategicNarrative(
+  readiness: ReadinessScore,
+  hiringProbability: HiringProbability,
+  advantages: CompetitiveAdvantage[]
+): Promise<string> {
+  const fallback =
+    `You are a strong candidate. Your core competencies match well (${readiness.core_competencies.pct}%). ` +
+    `Job-specific skills are trainable (typically ${readiness.time_to_full_competency} days on the job). ` +
+    `Estimated hiring probability: ${hiringProbability.probability}%. Apply with confidence.`
+
+  const systemPrompt =
+    'You are a career coach who writes strategic, confidence-building feedback for job seekers. ' +
+    'Separate trainable skills from core competencies. Reframe skill gaps as learnable rather than ' +
+    'disqualifying. State the hiring probability and the reasoning behind it. Use encouraging but ' +
+    'honest language — never promise an outcome, only describe realistic likelihood. Respond with ' +
+    'the narrative text only, no preamble and no markdown headers.'
+
+  const userPrompt = `Write a brief, confidence-building narrative (200 words max) from this analysis:
+- Overall readiness: ${readiness.overall}%
+- Core competencies match: ${readiness.core_competencies.pct}%
+- Trainable gaps: ${readiness.trainable_gaps}%
+- Estimated hiring probability: ${hiringProbability.probability}% (${hiringProbability.confidence} confidence)
+- Typical time to full competency: ${readiness.time_to_full_competency} days
+- Competitive advantages: ${advantages.map(a => a.title).join(', ') || 'none identified'}
+
+The narrative should:
+1. Open by reframing the overall percentage — it undersells the candidate because it treats trainable, employer-provided skills the same as core competencies
+2. Highlight the core-competency match as the rare, hard-to-train part
+3. Reframe the trainable gaps as standard onboarding, not a disqualifier
+4. State the hiring probability plainly
+5. End with a short, confident closing line
+
+Keep it under 200 words.`
+
+  try {
+    const narrative = await getCompletion({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.4,
+      maxTokens: 400,
+    })
+    return narrative.trim() || fallback
+  } catch (err) {
+    console.error('[SKILL_GAP_NARRATIVE]', err)
+    return fallback
   }
 }
 

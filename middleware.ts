@@ -10,6 +10,7 @@ const AI_ROUTES = [
   '/api/questionnaire/extract-skill',
   '/api/cover-letter/generate',
   '/api/networking/suggest',
+  '/api/skill-gap/strategic',
 ]
 
 const AUTH_ROUTES = ['/login', '/signup', '/forgot-password']
